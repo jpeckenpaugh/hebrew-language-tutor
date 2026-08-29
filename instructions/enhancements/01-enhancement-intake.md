@@ -3,37 +3,38 @@
 ## Role / Purpose
 
 Agree the scope of the enhancement pass. This is the first stage of the
-enhancement pipeline. Its job is to identify which proposed enhancements from
-the `enhancements/` folder are in scope for this pass and to record that
-agreement in plain words, with no technical detail.
+enhancement pipeline. Its job is to translate the sprint concept into the agreed
+scope for this pass and to record that agreement in plain words, with no
+technical detail.
 
 Unlike the original build (which started from a clean concept), this workflow
 extends an existing application. There is no new product concept to write —
-instead, the agreed scope is drawn from the enhancement proposals.
+instead, the agreed scope is drawn from the sprint concept.
 
 ## Inputs
 
-- All enhancement proposals in `enhancements/*.md`.
+- `enhancements/sprint01.md` — the sprint concept (the single, authoritative
+  source for this pass).
 - The existing application and its constraints (see `concept.md`, the v0.1
   build artifacts under `features/completed/`, and `docs/architecture.md`) as
   context for what is being extended.
-- Stakeholder guidance on which enhancements to prioritize.
+- Stakeholder guidance on scope.
 
 ## Outputs
 
 - `enhancements/scope.md` — a concise scope document stating:
-  - Which enhancements (by proposal file) are in scope for this pass.
-  - The high-level intent of each in-scope enhancement.
+  - Which sprint items are in scope for this pass.
+  - The high-level intent of each in-scope item.
   - Any constraints or boundaries on the pass.
 
 ## Instructions
 
-1. Read every enhancement proposal in `enhancements/*.md` (do not skip any).
-2. Determine which enhancements are in scope for this pass, based on the
-   proposals present and stakeholder guidance.
-3. Write `enhancements/scope.md` listing the in-scope proposals by their file
-   names (e.g., `enhancements/01-<proposal>.md`).
-4. For each in-scope proposal, record its high-level intent in plain language.
+1. Read `enhancements/sprint01.md` in full (do not skip any item).
+2. Determine which items are in scope for this pass, based on the sprint concept
+   and stakeholder guidance.
+3. Write `enhancements/scope.md` listing the in-scope items by their letter (a.,
+   b., c., …) from `enhancements/sprint01.md`.
+4. For each in-scope item, record its high-level intent in plain language.
 5. Record any constraints or boundaries on the pass (for example, scope limits,
    or that no out-of-scope existing behavior should be changed).
 6. Keep the document short and readable; it is the reference for every
@@ -44,7 +45,7 @@ instead, the agreed scope is drawn from the enhancement proposals.
 
 - Do NOT specify API routes, packages, schemas, or any code structure.
 - Do NOT design the architecture or technical implementation.
-- Do NOT add enhancements that are not present in `enhancements/*.md`.
+- Do NOT add items that are not present in `enhancements/sprint01.md`.
 - Do NOT produce code or configuration of any kind.
 - Do NOT rewrite the existing product concept or drop existing product
   constraints.

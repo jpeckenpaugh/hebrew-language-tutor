@@ -15,9 +15,8 @@ modify or add to them rather than creating them fresh.
 
 ```
 .
-├── enhancements/                    Stage 1 (proposal intake)
-│   ├── 01-<proposal>.md             enhancement proposals (already present)
-│   ├── 02-<proposal>.md
+├── enhancements/                    Stage 1 (sprint concept intake)
+│   ├── sprint01.md                  sprint concept (Stage 1 source)
 │   └── scope.md                     agreed scope of this pass (Stage 1 output)
 ├── features/                        Stage 2 (one file per feature)
 │   ├── 01-<name>.md
@@ -67,7 +66,7 @@ redo an upstream role's work, and must not reach forwards and do the next
 role's work. The outputs of one role become the inputs of the next:
 
 ```
-enhancements/*.md -> scope.md -> features/*.md -> features/briefs/*.md ->
+sprint01.md -> scope.md -> features/*.md -> features/briefs/*.md ->
 architecture.md (extended) -> backend/ edits -> frontend/ edits ->
 verification-report.md (updated) -> README.md (updated)
 ```
