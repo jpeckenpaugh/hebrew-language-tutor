@@ -7,4 +7,5 @@ b.) Use Bootstrap CSS/JS as the baseline (fetch the files from the CDN and host 
 c.) Add 5 basic language lessons, with 10 vocab items for each lesson.
 d.) Each lesson should have study, quiz, and exam modes.  Quiz should allow the user to have immediate feedback on their answers and exam mode shows the results at the end of the exam.  Use multiple choice for both quiz and exam modes.
 e.) Application state, including lessons should be sourced from the backend API.
-f.) Create a simple "Admin" mode that allows a user to sign in and modify existing as well as add new Lessons/Vocab.
+f.) Include basic Navigation and Score/Attempt persistence in the API/DB.
+g.) Create a simple "Admin" mode that allows a user to sign in and modify existing as well as add new Lessons/Vocab.
