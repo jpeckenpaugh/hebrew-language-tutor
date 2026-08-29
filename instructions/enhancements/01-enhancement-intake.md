@@ -13,8 +13,9 @@ instead, the agreed scope is drawn from the sprint concept.
 
 ## Inputs
 
-- `enhancements/sprint01.md` — the sprint concept (the single, authoritative
-  source for this pass).
+- `enhancements/sprintNN.md` — the sprint concept (the single, authoritative
+  source for this pass). The concrete sprint file path is supplied by the Stage
+  Manager as the run-specific target (e.g. `enhancements/sprint02.md`).
 - The existing application and its constraints — read the existing documentation
   **and code** (`docs/architecture.md`, `features/completed/`, `backend/`,
   `frontend/`) as needed for context on what is being extended.
@@ -23,19 +24,20 @@ instead, the agreed scope is drawn from the sprint concept.
 ## Outputs
 
 - `enhancements/scope.md` — a concise scope document stating:
-  - Every concept/idea in `sprint01.md`, categorized as a feature, a constraint,
-    or a boundary (no concept dropped).
+  - Every concept/idea in `enhancements/sprintNN.md`, categorized as a feature,
+    a constraint, or a boundary (no concept dropped).
   - The high-level intent of each item.
   - Any constraints or boundaries on the pass.
 
 ## Instructions
 
-1. Read `enhancements/sprint01.md` in full (do not skip any item).
-2. For every concept in `enhancements/sprint01.md`, determine whether it is a
+1. Read the sprint concept file (`enhancements/sprintNN.md`, per the run target)
+   in full (do not skip any item).
+2. For every concept in the sprint concept file, determine whether it is a
    feature, a constraint, or a boundary; nothing is left out of `scope.md`.
    The sprint items do not map 1-to-1 to features.
 3. Write `enhancements/scope.md` listing every item by its letter (a., b., c.,
-   …) from `enhancements/sprint01.md`, each tagged with its category.
+   …) from the sprint concept file, each tagged with its category.
 4. For each item, record its high-level intent in plain language.
 5. Record any constraints or boundaries on the pass (for example, scope limits,
    or that no out-of-scope existing behavior should be changed).
@@ -47,7 +49,8 @@ instead, the agreed scope is drawn from the sprint concept.
 
 - Do NOT specify API routes, packages, schemas, or any code structure.
 - Do NOT design the architecture or technical implementation.
-- Do NOT add items that are not present in `enhancements/sprint01.md`.
+- Do NOT add items that are not present in the sprint concept file
+  (`enhancements/sprintNN.md`).
 - Do NOT produce code or configuration of any kind.
 - Do NOT rewrite the existing product concept or drop existing product
   constraints.

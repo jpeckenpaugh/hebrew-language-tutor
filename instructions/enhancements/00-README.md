@@ -16,10 +16,12 @@ modify or add to them rather than creating them fresh.
 ```
 .
 ├── enhancements/                    Stage 1 (sprint concept intake)
-│   ├── sprint01.md                  sprint concept (Stage 1 source)
+│   ├── sprintNN.md                  current sprint concept (Stage 1 source)
 │   └── scope.md                     agreed scope of this pass (Stage 1 output)
+├── archive/                         Stage 10 (on-demand archive)
+│   ├── build/                       archived v0.1 baseline (features/completed/)
+│   └── sprintNN/                    archived prior-sprint artifacts
 ├── features/                        Stage 2 (one file per feature)
-│   ├── completed/                   (existing v0.1 features — context)
 │   ├── 01-<name>.md
 │   ├── 02-<name>.md
 │   └── briefs/
@@ -36,7 +38,7 @@ modify or add to them rather than creating them fresh.
 └── instructions/
     └── enhancements/
         ├── 00-README.md             (this file)
-        ├── 01-...-09-*.md           role instructions
+        ├── 01-...-10-*.md           role instructions
         └── summaries/
             ├── 00-template.md       enhancement-specific summary template
             └── NN-<slug>.md         (each role's summary)
@@ -45,6 +47,10 @@ modify or add to them rather than creating them fresh.
 The fresh `features/` folder is created by Stage 2 and `features/briefs/` by
 Stage 3. `docs/architecture.md`, `backend/`, `frontend/`, and the environment
 scripts already exist from the v0.1 build and are **extended**, not recreated.
+
+The archived v0.1 baseline lives under `archive/build/` (previously
+`features/completed/`); it remains available as context for Stages 2 and 3.
+Completed sprint artifacts live under `archive/sprintNN/` (Stage 10).
 
 ## Roles in order
 
@@ -59,6 +65,7 @@ scripts already exist from the v0.1 build and are **extended**, not recreated.
 | 7     | Frontend Engineer       | `07-frontend.md`                  | modifies code under `frontend/`                      |
 | 8     | Verification Engineer  | `08-verification.md`              | extends/updates `docs/verification-report.md`        |
 | 9     | Project Manager / Docs  | `09-documentation.md`             | updates `README.md` and related docs                 |
+| 10    | Archive                 | `10-archive.md`                   | relocates a phase/sprint's artifacts to `archive/`   |
 
 ## Handoffs
 
@@ -67,9 +74,10 @@ redo an upstream role's work, and must not reach forwards and do the next
 role's work. The outputs of one role become the inputs of the next:
 
 ```
-sprint01.md -> scope.md -> features/*.md -> features/briefs/*.md ->
+sprintNN.md -> scope.md -> features/*.md -> features/briefs/*.md ->
 architecture.md (extended) -> backend/ edits -> frontend/ edits ->
-verification-report.md (updated) -> README.md (updated)
+verification-report.md (updated) -> README.md (updated) ->
+archive/<sprintNN>/ (Stage 10, relocates the completed sprint)
 ```
 
 ## Temporary files and logs
