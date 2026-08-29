@@ -5,6 +5,19 @@ through a sequence of clearly separated roles. Each role reads the artifacts
 produced by upstream roles, does a bounded amount of work, writes its own
 artifacts, and hands off to the next role.
 
+## Batch processing
+
+A debug run processes **all open bug reports** under `bugs/` as a single
+**batch** — those whose `Status` is anything other than `Resolved`. The Stage
+Manager states the batch (the list of `bugs/NN-<slug>.md` paths) at run start.
+
+The pipeline runs **stage-parallel over the batch**: each stage applies to
+*every* report in the batch before it is considered complete and hands off. A
+stage does not finish when one report is done — it finishes when all reports in
+the batch have been processed. The two human gates therefore apply to the whole
+batch: the fix must be approved for **all** reports before Stage 2 runs, and
+resolution must be confirmed for **all** fixed reports before Stage 3 runs.
+
 The role instructions live in the `instructions/debug/` folder. Bug reports
 live in the top-level `bugs/` folder, with resolved bugs moved to
 `bugs/resolved/`.
@@ -46,9 +59,9 @@ redo an upstream role's work, and must not reach forwards and do the next
 role's work. The outputs of one role become the inputs of the next:
 
 ```
-bugs/NN-<slug>.md -> (01: root cause + proposed fix) ->
-human approves -> (02: implemented fix) ->
-human confirms -> (03: resolved + moved to bugs/resolved/)
+bugs/*.md (the batch) -> (01: root cause + proposed fix for EACH) ->
+human approves ALL -> (02: implemented fix for EACH) ->
+human confirms ALL -> (03: resolved EACH + moved to bugs/resolved/)
 ```
 
 ## Bug report status lifecycle
@@ -66,9 +79,16 @@ Open -> Analyzed -> Approved -> Fixed -> Resolved
 - **Resolved** — a human confirmed the fix after testing; Stage 3 moved the report
   to `bugs/resolved/NN-<slug>.md`.
 
-Two human gates exist in the pipeline:
-1. **Approve the fix** — before Stage 2 runs.
-2. **Confirm resolution** — during Stage 3, after human testing.
+Two human gates exist in the pipeline, both applying to the whole batch:
+1. **Approve the fix** — before Stage 2 runs, the human approves the proposed
+   fixes for **all** reports in the batch.
+2. **Confirm resolution** — during Stage 3, the human confirms (after testing)
+   that **all** fixed reports are resolved.
+
+Because the `Analyzed → Approved` status change is a directed tweak no stage
+produces, the Stage Manager records it — for **every** report in the batch — once
+the human approves, and commits it in a single `debug gate: approve <slugs>`
+commit before Stage 2 runs.
 
 ## Temporary files and logs
 
@@ -81,30 +101,33 @@ the OS temp directory (e.g. `/tmp`) or into the project tree.
 
 ## Summary requirement
 
-Every role must write a single markdown summary of its completed work into the
+Every role in a stage writes **one summary per bug report in the batch** into the
 `instructions/debug/summaries/` folder, named `NN-<slug>.md` to match its stage
 number and the bug it worked on (for example
-`instructions/debug/summaries/02-tts-issue.md`). Use
-`instructions/debug/summaries/00-template.md` as the basis.
+`instructions/debug/summaries/02-tts-issue.md`). A stage therefore writes as many
+summaries as there are reports in the batch (e.g. five bugs → five summaries per
+stage). Use `instructions/debug/summaries/00-template.md` as the basis.
 
 ## Per-stage commits
 
-Each stage commits its work as the **final step** of the stage, after producing
-all of its artifacts and writing its summary. Nothing is committed until the
-stage is fully done.
+Each stage commits its work as the **final step** of the stage, after it has
+processed **all** reports in the batch and written all of its summaries. Nothing
+is committed until the stage is fully done.
 
-- Commit all of the stage's changes (artifacts plus summary) to the current
-  branch and push to `origin`.
+- Commit all of the stage's changes (reports, code, summaries) for the whole
+  batch to the current branch and push to `origin`.
 - Use a commit message in the form `debug <NN>: <brief summary>` (for example
-  `debug 02: fix tts cancel-and-speak bug`).
-- Do not commit work that is incomplete or from another stage.
+  `debug 02: fix the five sprint-03 bugs`). A stage makes **one** commit covering
+  every report in the batch, not one commit per bug.
 
 ## Verification of the pipeline
 
 - Each role works only from the artifacts listed under "Inputs" in its
   instruction file.
 - Each role produces only the artifacts listed under "Outputs".
-- Each role writes its summary before handing off.
+- Each role processes **every** report in the batch before its stage is
+  considered complete; a stage does not hand off after handling only some bugs.
+- Each role writes its summaries before handing off.
 - No role performs the work of another role.
 - No role deletes or regresses unrelated existing behavior.
 - Each stage commits and pushes its work as its final step (see "Per-stage

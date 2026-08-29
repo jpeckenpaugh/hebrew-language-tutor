@@ -1,9 +1,10 @@
 # Role Summary Template (Debug)
 
-Every role in the debug pipeline writes one markdown file into the
-`instructions/debug/summaries/` folder using this template. Name the file
+Every role in a stage writes **one summary per bug report in the batch** into the
+`instructions/debug/summaries/` folder using this template. Name each file
 `NN-<slug>.md` to match the role's stage number and the bug it worked on (for
-example `instructions/debug/summaries/02-tts-issue.md`).
+example `instructions/debug/summaries/02-tts-issue.md`). A stage with a batch of
+several bugs writes one `NN-<slug>.md` per report.
 
 Copy the template below, replace the placeholder text, and remove any section
 you do not need. Keep the summary high-level; it is an overview for downstream
