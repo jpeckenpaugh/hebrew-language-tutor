@@ -10,6 +10,9 @@
 
   // Admin token is kept in memory only (backend tokens are per-process).
   let adminToken = null;
+  // User session token + identity for learner accounts (separate namespace).
+  let userToken = null;
+  let currentUser = null;
   let currentLessonId = null;
 
   // --- API client -------------------------------------------------------
@@ -17,7 +20,13 @@
   async function api(path, options = {}) {
     const headers = options.headers || {};
     headers['Content-Type'] = 'application/json';
-    if (adminToken) headers['Authorization'] = 'Bearer ' + adminToken;
+    // User-scoped calls (scores, progress, auth session) carry the user token;
+    // admin mutating calls carry the admin token. Two distinct namespaces.
+    if (path.indexOf('/api/admin') === 0) {
+      if (adminToken) headers['Authorization'] = 'Bearer ' + adminToken;
+    } else if (userToken) {
+      headers['Authorization'] = 'Bearer ' + userToken;
+    }
 
     let body = options.body;
     if (body && typeof body !== 'string') body = JSON.stringify(body);
@@ -60,6 +69,81 @@
     render(node);
   }
 
+  // --- Session / Title screen ------------------------------------------
+
+  function updateUserBadge() {
+    const badge = document.getElementById('userBadge');
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (currentUser) {
+      badge.textContent = 'Signed in as ' + currentUser.username;
+      badge.classList.remove('d-none');
+      logoutBtn.classList.remove('d-none');
+    } else {
+      badge.classList.add('d-none');
+      logoutBtn.classList.add('d-none');
+    }
+  }
+
+  function goTitle() {
+    currentLessonId = null;
+    adminToken = null;
+    setActiveNav(null);
+    document.body.classList.add('on-title');
+    render(Views.title(
+      (username) => authenticate('login', username),
+      (username) => authenticate('signup', username),
+      goAdmin
+    ));
+  }
+
+  async function authenticate(kind, rawUsername) {
+    const username = (rawUsername || '').trim();
+    const errorEl = document.getElementById('titleError');
+    if (errorEl) errorEl.classList.add('d-none');
+    if (!username) {
+      if (errorEl) {
+        errorEl.textContent = 'Please enter a non-empty username.';
+        errorEl.classList.remove('d-none');
+      }
+      return;
+    }
+    try {
+      const res = await api('/api/auth/' + kind, { method: 'POST', body: { username } });
+      userToken = res.data.token;
+      currentUser = res.data.user;
+      updateUserBadge();
+      document.body.classList.remove('on-title');
+      goCatalog();
+    } catch (e) {
+      if (errorEl) {
+        errorEl.textContent = e.message;
+        errorEl.classList.remove('d-none');
+      }
+    }
+  }
+
+  async function logout() {
+    if (userToken) {
+      try { await api('/api/auth/logout', { method: 'POST' }); } catch (_) {}
+    }
+    if (adminToken) {
+      try { await api('/api/admin/logout', { method: 'POST' }); } catch (_) {}
+    }
+    userToken = null;
+    currentUser = null;
+    adminToken = null;
+    updateUserBadge();
+    goTitle();
+  }
+
+  function goReview(scoreId, back) {
+    showLoading(true);
+    api('/api/scores/' + scoreId + '/review')
+      .then((res) => render(Views.review(res.data, back)))
+      .catch((e) => showError('Could not load review: ' + e.message))
+      .finally(() => showLoading(false));
+  }
+
   // --- Navigation -------------------------------------------------------
 
   function goCatalog() {
@@ -70,7 +154,10 @@
       .then((res) => {
         render(Views.catalog(res.data, openLesson));
       })
-      .catch((e) => showError('Could not load the catalog: ' + e.message))
+      .catch((e) => {
+        if (e.status === 401) { logout(); return; }
+        showError('Could not load the catalog: ' + e.message);
+      })
       .finally(() => showLoading(false));
   }
 
@@ -79,9 +166,13 @@
     setActiveNav(null);
     showLoading(true);
     try {
-      const res = await api('/api/lessons/' + lessonId);
-      render(Views.lessonHub(res.data, (mode) => openMode(lessonId, mode)));
+      const [lessonRes, progress] = await Promise.all([
+        api('/api/lessons/' + lessonId),
+        (userToken ? api('/api/lessons/' + lessonId + '/progress').then((r) => r.data).catch(() => null) : null),
+      ]);
+      render(Views.lessonHub(lessonRes.data, (mode) => openMode(lessonId, mode), progress));
     } catch (e) {
+      if (e.status === 401) { logout(); return; }
       showError('Could not load the lesson: ' + e.message);
     } finally {
       showLoading(false);
@@ -113,15 +204,29 @@
   async function finishAttempt(lesson, mode, answers, back) {
     const correct = answers.filter(Boolean).length;
     const total = answers.length;
+    let scoreId = null;
     try {
-      await api('/api/scores', {
+      const res = await api('/api/scores', {
         method: 'POST',
-        body: { lesson_id: lesson.id, mode, correct, total },
+        body: {
+          lesson_id: lesson.id,
+          mode,
+          correct,
+          total,
+          answers: lesson.vocab.map((item, i) => ({ vocab_id: item.id, correct: answers[i] })),
+        },
       });
-      render(Views.results(mode, correct, total, back));
+      scoreId = res.data.id;
     } catch (e) {
-      render(Views.results(mode, correct, total, back));
+      // Still show results locally if saving fails.
     }
+    const wrongCount = total - correct;
+    const reviewOpts = (scoreId && wrongCount > 0) ? {
+      scoreId,
+      wrongCount,
+      onReview: () => goReview(scoreId, () => render(Views.results(mode, correct, total, back, reviewOpts))),
+    } : null;
+    render(Views.results(mode, correct, total, back, reviewOpts));
   }
 
   function goScores() {
@@ -133,7 +238,10 @@
         lessonRes.data.forEach((l) => { titles[l.id] = l.title; });
         render(Views.scores(scoreRes.data, titles));
       })
-      .catch((e) => showError('Could not load scores: ' + e.message))
+      .catch((e) => {
+        if (e.status === 401) { logout(); return; }
+        showError('Could not load scores: ' + e.message);
+      })
       .finally(() => showLoading(false));
   }
 
@@ -141,6 +249,7 @@
 
   function goAdmin() {
     setActiveNav('admin');
+    document.body.classList.remove('on-title');
     if (!adminToken) {
       render(Views.adminLogin(async (username, password, form) => {
         const errorEl = form.parentElement.querySelector('#loginError');
@@ -219,16 +328,17 @@
         }
       },
 
-      onAddVocab: async (lessonId, english, hebrew, card) => {
+      onAddVocab: async (lessonId, english, hebrew, transliteration, card) => {
         const errorEl = card.querySelector('.add-vocab .error');
         errorEl.classList.add('d-none');
         try {
           await api('/api/admin/lessons/' + lessonId + '/vocab', {
             method: 'POST',
-            body: { english, hebrew },
+            body: { english, hebrew, transliteration },
           });
           card.querySelector('.new-english').value = '';
           card.querySelector('.new-hebrew').value = '';
+          card.querySelector('.new-translit').value = '';
           const list = card.querySelector('.vocab-list');
           list.dataset.loaded = '';
           adminCallbacks().onLoadVocab(lessonId, list);
@@ -239,13 +349,13 @@
         }
       },
 
-      onUpdateVocab: async (vocabId, english, hebrew, row) => {
+      onUpdateVocab: async (vocabId, english, hebrew, transliteration, row) => {
         const errorEl = row.querySelector('.error');
         errorEl.classList.add('d-none');
         try {
           await api('/api/admin/vocab/' + vocabId, {
             method: 'PUT',
-            body: { english, hebrew },
+            body: { english, hebrew, transliteration },
           });
           row.querySelector('.v-save').textContent = 'Saved';
           setTimeout(() => { row.querySelector('.v-save').textContent = 'Save'; }, 1500);
@@ -280,7 +390,8 @@
 
   function init() {
     wireNav();
-    goCatalog();
+    document.getElementById('logoutBtn').addEventListener('click', () => logout());
+    goTitle();
   }
 
   document.addEventListener('DOMContentLoaded', init);

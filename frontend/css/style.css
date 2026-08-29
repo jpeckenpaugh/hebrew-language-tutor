@@ -12,6 +12,12 @@ main {
   font-weight: 600;
 }
 
+/* On the Title screen the main-app navbar is hidden; the Title view offers
+   the sign-in / create-account / admin entry paths. */
+.on-title .navbar {
+  display: none;
+}
+
 .card {
   border: 1px solid #e2e8f0;
   border-radius: 0.5rem;

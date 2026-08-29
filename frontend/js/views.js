@@ -23,6 +23,45 @@ function esc(value) {
 }
 
 const Views = {
+  /* Title screen: sign-in / create account / admin entry.
+   * `onSignIn(username)` and `onCreate(username)` are called with the entered
+   * username; `onAdmin()` opens the (unchanged) dummy admin gate. */
+  title(onSignIn, onCreate, onAdmin) {
+    const wrap = el(
+      '<div class="row justify-content-center py-5">' +
+        '<div class="col-md-6 col-lg-5">' +
+          '<div class="text-center mb-4">' +
+            '<h1 class="display-5">English / Hebrew Tutor</h1>' +
+            '<p class="text-muted">Sign in or create an account to begin.</p>' +
+          '</div>' +
+          '<div class="card p-4">' +
+            '<form id="titleForm">' +
+              '<div class="mb-3">' +
+                '<label class="form-label" for="titleUsername">Username</label>' +
+                '<input class="form-control" id="titleUsername" autocomplete="username" placeholder="Enter your username">' +
+              '</div>' +
+              '<div id="titleError" class="alert alert-danger d-none mb-3"></div>' +
+              '<div class="d-grid gap-2">' +
+                '<button type="submit" class="btn btn-primary">Sign In</button>' +
+                '<button type="button" class="btn btn-outline-primary" id="titleCreate">Create Account</button>' +
+              '</div>' +
+            '</form>' +
+            '<hr class="my-4">' +
+            '<button class="btn btn-outline-secondary w-100" id="titleAdmin">Admin Area</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+    const usernameEl = wrap.querySelector('#titleUsername');
+    wrap.querySelector('#titleForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      onSignIn(usernameEl.value);
+    });
+    wrap.querySelector('#titleCreate').addEventListener('click', () => onCreate(usernameEl.value));
+    wrap.querySelector('#titleAdmin').addEventListener('click', () => onAdmin());
+    return wrap;
+  },
+
   /* Catalog: grid of lessons. `onOpen(lessonId)` called when clicked. */
   catalog(lessons, onOpen) {
     const grid = document.createElement('div');
@@ -51,8 +90,9 @@ const Views = {
     return wrap;
   },
 
-  /* Lesson hub: title plus buttons for the three modes. */
-  lessonHub(lesson, onMode) {
+  /* Lesson hub: title plus buttons for the three modes. `progress` is an
+   * optional { total, known } object (null when unavailable / not signed in). */
+  lessonHub(lesson, onMode, progress) {
     const wrap = el('<div></div>');
     wrap.appendChild(
       el(
@@ -64,7 +104,24 @@ const Views = {
         '</nav>'
       )
     );
-    wrap.appendChild(el('<h2 class="mb-4">' + esc(lesson.title) + '</h2>'));
+    wrap.appendChild(el('<h2 class="mb-2">' + esc(lesson.title) + '</h2>'));
+
+    if (progress) {
+      const known = Math.min(progress.known, progress.total);
+      const pct = progress.total > 0 ? Math.round((known / progress.total) * 100) : 0;
+      const progressBar = el(
+        '<div class="mb-4">' +
+          '<div class="d-flex justify-content-between small text-muted mb-1">' +
+            '<span>Your progress</span>' +
+            '<span>' + known + ' of ' + progress.total + ' known</span>' +
+          '</div>' +
+          '<div class="progress" style="height: 0.6rem;">' +
+            '<div class="progress-bar" style="width: ' + pct + '%" role="progressbar"></div>' +
+          '</div>' +
+        '</div>'
+      );
+      wrap.appendChild(progressBar);
+    }
 
     const row = el('<div class="row g-3"></div>');
     const modes = [
@@ -105,8 +162,13 @@ const Views = {
           '<span class="text-muted" id="studyCount"></span>' +
         '</div>' +
         '<div class="card study-item p-4 mb-4 text-center" id="studyCard">' +
-          '<h3 class="mb-2" id="studyEnglish"></h3>' +
-          '<h5 class="text-muted mb-0" id="studyHebrew"></h5>' +
+          '<h3 class="mb-1" id="studyEnglish"></h3>' +
+          '<div class="mb-2"><em class="text-muted" id="studyTransliteration"></em></div>' +
+          '<h5 class="text-muted mb-3" id="studyHebrew"></h5>' +
+          '<div class="d-flex justify-content-center gap-2">' +
+            '<button class="btn btn-sm btn-outline-secondary" id="speakEnglish">🔊 English</button>' +
+            '<button class="btn btn-sm btn-outline-secondary" id="speakHebrew">🔊 Hebrew</button>' +
+          '</div>' +
         '</div>' +
         '<div class="d-flex justify-content-between">' +
           '<button class="btn btn-outline-primary" id="studyPrev">← Previous</button>' +
@@ -119,18 +181,39 @@ const Views = {
 
     const engEl = wrap.querySelector('#studyEnglish');
     const hebEl = wrap.querySelector('#studyHebrew');
+    const transEl = wrap.querySelector('#studyTransliteration');
     const countEl = wrap.querySelector('#studyCount');
     const prevBtn = wrap.querySelector('#studyPrev');
     const nextBtn = wrap.querySelector('#studyNext');
+    const speakEnBtn = wrap.querySelector('#speakEnglish');
+    const speakHeBtn = wrap.querySelector('#speakHebrew');
+
+    function speak(text, lang) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = lang;
+      window.speechSynthesis.speak(utter);
+    }
 
     function render() {
       const item = vocab[index];
       engEl.textContent = item.english;
       hebEl.textContent = item.hebrew;
+      transEl.textContent = item.transliteration || '';
       countEl.textContent = (index + 1) + ' / ' + vocab.length;
       prevBtn.disabled = index === 0;
       nextBtn.disabled = index === vocab.length - 1;
     }
+
+    speakEnBtn.addEventListener('click', () => {
+      const item = vocab[index];
+      if (item) speak(item.english, 'en-US');
+    });
+    speakHeBtn.addEventListener('click', () => {
+      const item = vocab[index];
+      if (item) speak(item.hebrew, 'he-IL');
+    });
 
     prevBtn.addEventListener('click', () => { if (index > 0) { index -= 1; render(); } });
     nextBtn.addEventListener('click', () => { if (index < vocab.length - 1) { index += 1; render(); } });
@@ -305,22 +388,68 @@ const Views = {
     return wrap;
   },
 
-  /* Results screen shared by quiz and exam. `onExit` goes back to the hub. */
-  results(mode, correct, total, onExit) {
+  /* Results screen shared by quiz and exam. `onExit` goes back to the hub.
+   * `reviewOpts` ({ scoreId, wrongCount, onReview }) enables the
+   * incorrect-answer review when the attempt had wrong answers. */
+  results(mode, correct, total, onExit, reviewOpts) {
     const pct = Math.round((correct / total) * 100);
+    const wrongCount = reviewOpts ? reviewOpts.wrongCount : 0;
     const wrap = el(
       '<div class="text-center py-4">' +
         '<h2 class="mb-4">' + (mode === 'quiz' ? 'Quiz' : 'Exam') + ' Complete</h2>' +
         '<div class="score-display text-primary mb-2">' + pct + '%</div>' +
         '<p class="text-muted mb-1">' + correct + ' correct out of ' + total + ' questions</p>' +
         '<p class="text-muted mb-4">Your result has been saved.</p>' +
-        '<div class="d-flex justify-content-center gap-2">' +
+        '<div class="d-flex justify-content-center gap-2 flex-wrap">' +
           '<button class="btn btn-primary" id="resBack">Back to Lesson</button>' +
           '<button class="btn btn-outline-primary" data-nav="catalog">All Lessons</button>' +
+          (wrongCount > 0 && reviewOpts
+            ? '<button class="btn btn-outline-danger" id="resReview">Review ' + wrongCount + ' Incorrect</button>'
+            : '') +
         '</div>' +
       '</div>'
     );
     wrap.querySelector('#resBack').addEventListener('click', () => onExit());
+    const reviewBtn = wrap.querySelector('#resReview');
+    if (reviewBtn) reviewBtn.addEventListener('click', () => reviewOpts.onReview());
+    return wrap;
+  },
+
+  /* Incorrect-answer review for a finished quiz/exam attempt. `onBack`
+     * returns to the results screen. */
+  review(review, onBack) {
+    const wrap = el('<div></div>');
+    wrap.appendChild(
+      el(
+        '<div class="d-flex justify-content-between align-items-center mb-3">' +
+          '<h2 class="mb-0">Incorrect Answers</h2>' +
+          '<button class="btn btn-outline-secondary" id="reviewBack">← Back</button>' +
+        '</div>'
+      )
+    );
+    wrap.querySelector('#reviewBack').addEventListener('click', () => onBack());
+
+    if (!review.wrong.length) {
+      wrap.appendChild(el('<div class="alert alert-success">Great job — you answered everything correctly!</div>'));
+      return wrap;
+    }
+
+    const rows = review.wrong.map((w) =>
+      '<div class="card p-3 mb-3">' +
+        '<div class="d-flex justify-content-between align-items-start gap-3">' +
+          '<div>' +
+            '<div class="fw-semibold">' + esc(w.english) + '</div>' +
+            '<div class="text-muted"><em>' + esc(w.transliteration || '') + '</em></div>' +
+          '</div>' +
+          '<div class="text-end">' +
+            '<div class="fs-5">' + esc(w.hebrew) + '</div>' +
+            '<div class="small text-success">correct answer</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    ).join('');
+
+    wrap.appendChild(el('<div>' + rows + '</div>'));
     return wrap;
   },
 
@@ -433,6 +562,7 @@ const Views = {
             '<div class="input-group">' +
               '<input class="form-control new-english" placeholder="English">' +
               '<input class="form-control new-hebrew" placeholder="Hebrew">' +
+              '<input class="form-control new-translit" placeholder="Transliteration">' +
               '<button class="btn btn-primary add-vocab-btn">Add Item</button>' +
             '</div>' +
             '<div class="error alert alert-danger d-none mt-2 mb-0"></div>' +
@@ -461,7 +591,8 @@ const Views = {
       card.querySelector('.add-vocab-btn').addEventListener('click', () => {
         const english = card.querySelector('.new-english').value.trim();
         const hebrew = card.querySelector('.new-hebrew').value.trim();
-        if (english && hebrew) callbacks.onAddVocab(lesson.id, english, hebrew, card);
+        const transliteration = card.querySelector('.new-translit').value.trim();
+        if (english && hebrew && transliteration) callbacks.onAddVocab(lesson.id, english, hebrew, transliteration, card);
       });
 
       wrap.appendChild(card);
@@ -478,6 +609,7 @@ const Views = {
         '<div class="row g-2 align-items-center mb-2">' +
           '<div class="col"><input class="form-control form-control-sm v-english" value="' + esc(item.english) + '"></div>' +
           '<div class="col"><input class="form-control form-control-sm v-hebrew" value="' + esc(item.hebrew) + '"></div>' +
+          '<div class="col"><input class="form-control form-control-sm v-translit" value="' + esc(item.transliteration || '') + '"></div>' +
           '<div class="col-auto"><button class="btn btn-sm btn-outline-primary v-save">Save</button></div>' +
           '<div class="col-12"><div class="error alert alert-danger d-none mb-0"></div></div>' +
         '</div>'
@@ -485,7 +617,8 @@ const Views = {
       row.querySelector('.v-save').addEventListener('click', () => {
         const english = row.querySelector('.v-english').value.trim();
         const hebrew = row.querySelector('.v-hebrew').value.trim();
-        callbacks.onUpdateVocab(item.id, english, hebrew, row);
+        const transliteration = row.querySelector('.v-translit').value.trim();
+        callbacks.onUpdateVocab(item.id, english, hebrew, transliteration, row);
       });
       list.appendChild(row);
     });
