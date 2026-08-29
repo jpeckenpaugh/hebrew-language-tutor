@@ -6,6 +6,12 @@ score history, pronunciation aids, incorrect-answer review, and known-word
 progress tracking, plus a dummy-gated admin area for adding/editing lessons and
 vocabulary.
 
+The Sprint 02 pass added frontend UI/UX refinements: a sign-in **user picker**
+with a separate **Create Account modal**, larger terms text, inline
+text-to-speech icons, and a simplified navigation (the top-nav Admin link and
+the "Signed in as" badge were removed, and Admin sign-out now returns to the
+main Title screen).
+
 The frontend is a plain HTML/CSS/JS single-page app (Bootstrap 5.3.3 as the
 baseline UI framework), and the backend is a FastAPI service backed by SQLite.
 All application state — lessons, vocabulary, users, saved scores, and known-word
@@ -37,6 +43,18 @@ pros/cons), see [`COMPARISON.md`](COMPARISON.md).
   alongside it in study mode.
 - **Text-to-speech** — study mode can speak the English and Hebrew forms of an
   item aloud using the browser's Web Speech API.
+- **Sign-in user picker** — the Title screen shows a dropdown of existing
+  accounts (loaded from the backend) so a returning user picks their name
+  instead of typing it; selecting a name does not sign the user in by itself.
+- **Create Account modal** — "Create Account" opens a separate modal asking for a
+  username, decoupled from sign-in; creating an account does not auto sign in.
+- **Larger terms text** — the English/Hebrew terms on the Study, Quiz, and Exam
+  screens are rendered notably larger for readability.
+- **Inline TTS icons** — small speaker icons sit beside each English/Hebrew term
+  in study mode, replacing the separate-line TTS buttons.
+- **Simplified navigation** — the top-nav "Admin" link is removed for signed-in
+  users (Admin stays reachable from the Title screen), the "Signed in as {User}"
+  badge is removed, and Admin "Log out" returns to the main Title screen.
 - **Score / attempt persistence** — completed quiz and exam attempts are saved
   and displayed as per-lesson history, tied to the signed-in user.
 - **Incorrect-answer review** — after finishing a quiz or exam, review the
@@ -81,8 +99,9 @@ HOST=0.0.0.0 ./run.sh  # override the bind host
 
 On startup the SQLite database (`backend/english_tutor.db`) is created and
 seeded automatically. Open the printed URL (e.g. `http://127.0.0.1:8000`) in a
-browser. The app opens to a **Title screen** where you enter a username to
-sign in or create an account, or choose the Admin entry.
+browser. The app opens to a **Title screen** with a sign-in user picker
+(populated from the backend) and a Create Account modal, plus a separate Admin
+entry.
 
 To reset to a clean, freshly seeded state (e.g. after demo data or testing),
 stop the server, delete `backend/english_tutor.db`, and start `./run.sh` again
@@ -103,7 +122,8 @@ stop the server, delete `backend/english_tutor.db`, and start `./run.sh` again
 │           ├── scores.py       # POST /api/scores, GET /api/scores, review
 │           ├── auth.py         # learner signup/login/logout/me (per-user)
 │           ├── progress.py     # GET /api/lessons/{id}/progress (known words)
-│           └── admin.py        # login/logout gate + lesson/vocab mutations
+│           ├── admin.py        # login/logout gate + lesson/vocab mutations
+│           └── users.py        # GET /api/users (public list for sign-in picker)
 ├── frontend/                   # SPA (served at / by the backend)
 │   ├── index.html              # app shell + Bootstrap navbar
 │   ├── css/style.css           # app-specific styles
@@ -115,20 +135,21 @@ stop the server, delete `backend/english_tutor.db`, and start `./run.sh` again
 ├── instructions/
 │   ├── build/                  # v0.1 role instructions
 │   │   └── summaries/          # v0.1 per-stage role summaries
-│   ├── enhancements/           # sprint 01 enhancement pipeline
-│   │   └── summaries/          # sprint 01 per-stage role summaries
+│   ├── enhancements/           # enhancement pipeline (sprint 01, sprint 02)
+│   │   └── summaries/          # per-stage role summaries (sprints 01, 02)
 │   ├── debug/                  # debug pipeline (investigate / fix / verify)
 │   │   └── summaries/          # debug per-stage role summaries
 │   └── meta/                   # Stage Manager meta role + session reports
 │       └── summaries/          # durable session-report log
-├── features/
-│   └── completed/              # v0.1 feature capabilities and briefs
-├── enhancements/               # sprint concept (sprint01.md) + scope
+├── features/                   # sprint 02 feature files (01–07) + briefs/
+│   └── briefs/                 # sprint 02 feature briefs
+├── archive/                    # archived v0.1 baseline (build/) + sprint 01 (sprint01/)
+├── enhancements/               # sprint 02 concept (sprint02.md) + agreed scope
 ├── bugs/                       # bug reports (resolved/ holds closed bugs)
 ├── tmp/                        # gitignored scratch/log folder (not committed)
 ├── docs/
-│   ├── architecture.md         # technical specification (Parts A and B)
-│   └── verification-report.md  # Stage 8 verification results (Parts A and B)
+│   ├── architecture.md         # technical specification (Parts A, B, and C)
+│   └── verification-report.md  # Stage 8 verification results (Parts A, B, and C)
 ├── requirements.txt
 ├── install.sh
 └── run.sh
@@ -142,8 +163,9 @@ three v0.1 tables (`lessons`, `vocab`, `scores`) plus the Sprint 01 additions
 `scores.user_id`), with idempotent seeding, catalog endpoints, per-user score
 submission/retrieval, incorrect-answer review, known-word progress, learner
 auth/session endpoints, and the admin login/logout gate with token-protected
-lesson/vocab mutating routes. The backend serves the frontend static files at
-`/`.
+lesson/vocab mutating routes. The Sprint 02 pass added the public `GET /api/users`
+endpoint (lists existing accounts, ordered by `id`) to back the Title-screen
+sign-in picker. The backend serves the frontend static files at `/`.
 
 The frontend (Stage 7) is a single-page app split into a controller
 (`app.js` — fetch calls, navigation, admin/user token handling, auth, TTS,
@@ -152,7 +174,12 @@ study, quiz, exam, results, review, scores, admin). It opens to a Title screen,
 keeps separate admin/user token namespaces, sends per-item answers when saving
 attempts, fetches per-user progress, and renders study-mode transliteration and
 text-to-speech controls. Quiz/exam questions are built client-side from the
-served vocabulary, with distractors drawn from the same lesson.
+served vocabulary, with distractors drawn from the same lesson. The Sprint 02
+pass refined the frontend: the Title screen's free-text username field became a
+sign-in picker (populated from `GET /api/users`) with a separate Create Account
+modal, study terms gained inline TTS speaker icons and larger text, Admin
+sign-out routes back to the main Title screen, and the top-nav Admin link and
+"Signed in as" badge were removed.
 
 ## Project status
 
@@ -160,6 +187,9 @@ served vocabulary, with distractors drawn from the same lesson.
 The Sprint 01 enhancement pass (Part B) added learner identity, pronunciation,
 and progress features and passed all 35 enhancement checklist items (23
 backend/API + 12 frontend static); no failures were found, and all v0.1
+endpoints behaved unchanged. The Sprint 02 pass (Part C) added the frontend
+UI/UX refinements and passed all 12 checklist items (4 backend/API live + 2
+backend static + 6 frontend static); no failures were found, and all Part A/B
 endpoints behaved unchanged. The full checklists and evidence are in
 `docs/verification-report.md`.
 
@@ -193,14 +223,25 @@ These are documented as-is and are not hidden:
    in this environment; frontend behavior was reviewed statically plus
    API-level verification of the endpoints the frontend consumes (see
    `docs/verification-report.md`).
+8. **User-list ordering is an implementation choice.** `GET /api/users` returns
+   accounts in `ORDER BY id` order; downstream consumers should not rely on a
+   specific order, since the API contract leaves ordering to implementation
+   choice (recorded in `docs/verification-report.md`, Part C limitation L1).
 
 ## Suggested next actions
 
 - Add headless-browser end-to-end tests to exercise the title/sign-in,
   study/quiz/exam, review, and admin flows in a live browser.
+- Add browser-driven tests specifically for the Sprint 02 interactive flows:
+  the sign-in picker (including the empty-state hint), the Create Account modal,
+  the inline TTS icons, the larger-text rendering, and the Admin "Log out" →
+  Title routing — these were verified by static review only.
 - Reconsider the dummy admin gate and in-memory token stores if real
   authentication or session persistence is ever required.
 - Decide whether admin-created lessons should enforce a minimum/typical vocab
   count, and add any UI/API affordances accordingly.
+- Treat `GET /api/users` ordering as unspecified: the UI may rely on the current
+  `ORDER BY id` behavior, or the endpoint could gain an explicit sort parameter
+  if a stable order must be guaranteed.
 - Consider serving pre-built questions from the backend if client-side
   distractor construction becomes a concern.

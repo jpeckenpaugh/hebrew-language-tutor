@@ -19,9 +19,10 @@ both experiments and compares them in detail.
   Feature Decomposition, Feature Briefs, System Engineering, Architecture,
   Backend, Frontend, Verification, and Documentation. Each stage wrote to the
   `instructions/`, `features/`, `docs/`, and `summaries/` folders (now archived
-  under `instructions/build/` and `features/completed/`) and handed off to the
-  next. A second 9-stage **enhancement pipeline** (Sprint 01) extended it with
-  learner identity, pronunciation, and progress features.
+  under `instructions/build/` and `archive/build/features/completed/`) and handed
+  off to the next. A second enhancement pass (Sprint 01) added learner identity,
+  pronunciation, and progress features, and a third (Sprint 02) refined the
+  UI/UX.
 - **Architecture:** a real client/server application. A **FastAPI** backend with
   **SQLite** persistence is the single source of truth for lessons, vocabulary,
   users, saved scores, and known-word progress. The frontend is a plain
@@ -32,7 +33,12 @@ both experiments and compares them in detail.
   dummy-gated **admin mode** for adding/editing lessons and vocabulary — plus the
   Sprint 01 enhancements: per-user accounts (no password), a Title screen,
   pronunciation guides (transliteration), text-to-speech, per-user score
-  history, incorrect-answer review, and known-word progress.
+  history, incorrect-answer review, and known-word progress. The Sprint 02 pass
+  refined the UI/UX: a sign-in **user picker** (populated from the backend) with
+  a separate **Create Account modal** that does not auto sign in, larger terms
+  text, **inline TTS icons** beside each term, Admin **"Log out"** returning to
+  the main Title screen, and removal of the top-nav Admin link and the "Signed
+  in as" badge.
 - **Code volume:** roughly 1,450 lines of application code, plus environment
   scripts, tests/verification, and extensive documentation.
 
@@ -62,6 +68,7 @@ both experiments and compares them in detail.
 | **Navigation** | Home ↔ lesson ↔ mode | Full SPA nav: catalog, scores, admin, breadcrumbs |
 | **Data richness** | Includes transliteration (pronunciation guide) per item | Transliteration added in the Sprint 01 pass (50 seed items); one non-seed item blank |
 | **Learner identity / progress** | None | Per-user accounts, per-user score history, incorrect-answer review, known-word progress |
+| **UI/UX refinements (Sprint 02)** | None | Sign-in user picker + Create Account modal, larger terms, inline TTS icons, simplified nav (no top-nav Admin link / "Signed in as" badge), Admin "Log out" → Title |
 | **Code volume** | ~370 lines | ~1,450 lines (≈4×) |
 | **Run mechanism** | `python3 -m http.server` (port 8080) | Uvicorn + venv (port 8000), with `install.sh` provisioning |
 | **Error handling / escaping** | Minimal; `innerHTML` templates, no escaping | Escaping, 422/404 paths, 401 re-auth, loading/error states |
@@ -139,6 +146,12 @@ both experiments and compares them in detail.
 6. **Minor dead code / edge cases:** a breadcrumb "Catalog" handler in the
    study view is a dead handler, and if a lesson were shrunk below 4 items the
    question builder could produce fewer than four multiple-choice options.
+7. **Sprint 02 refined the UX without changing the architecture.** The UI/UX
+   pass added a user picker and Create Account modal, larger terms, inline TTS
+   icons, and simplified navigation entirely in the frontend (plus one read-only
+   `GET /api/users` endpoint). It is a good example of how the decomposed app
+   can absorb a frontend-focused refinement with no schema or data-model change,
+   unlike the static POC where such flows do not exist at all.
 
 ---
 
