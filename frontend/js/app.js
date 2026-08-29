@@ -71,34 +71,55 @@
 
   // --- Session / Title screen ------------------------------------------
 
+  // The top-nav "Admin" link is hidden whenever a session (learner or admin)
+  // is active; Admin stays reachable only from the Title screen.
+  function setNavVisibility() {
+    const adminNav = document.getElementById('adminNavItem');
+    if (adminNav) adminNav.classList.toggle('d-none', !!(userToken || adminToken));
+  }
+
   function updateUserBadge() {
-    const badge = document.getElementById('userBadge');
     const logoutBtn = document.getElementById('logoutBtn');
-    if (currentUser) {
-      badge.textContent = 'Signed in as ' + currentUser.username;
-      badge.classList.remove('d-none');
-      logoutBtn.classList.remove('d-none');
-    } else {
-      badge.classList.add('d-none');
-      logoutBtn.classList.add('d-none');
-    }
+    logoutBtn.classList.toggle('d-none', !currentUser);
   }
 
   function goTitle() {
     currentLessonId = null;
     adminToken = null;
     setActiveNav(null);
+    setNavVisibility();
     document.body.classList.add('on-title');
-    render(Views.title(
-      (username) => authenticate('login', username),
-      (username) => authenticate('signup', username),
-      goAdmin
-    ));
+    showLoading(true);
+    api('/api/users')
+      .then((res) => {
+        render(Views.title(
+          (username) => authenticate('login', username),
+          showCreateModal,
+          goAdmin,
+          res.data
+        ));
+      })
+      .catch(() => {
+        render(Views.title(
+          (username) => authenticate('login', username),
+          showCreateModal,
+          goAdmin,
+          []
+        ));
+      })
+      .finally(() => showLoading(false));
   }
 
-  async function authenticate(kind, rawUsername) {
+  function showCreateModal() {
+    const modalEl = Views.createAccountModal((username) => createAccount(username));
+    document.body.appendChild(modalEl);
+    new bootstrap.Modal(modalEl).show();
+    modalEl.addEventListener('hidden.bs.modal', () => modalEl.remove());
+  }
+
+  async function createAccount(rawUsername) {
     const username = (rawUsername || '').trim();
-    const errorEl = document.getElementById('titleError');
+    const errorEl = document.getElementById('createError');
     if (errorEl) errorEl.classList.add('d-none');
     if (!username) {
       if (errorEl) {
@@ -108,9 +129,34 @@
       return;
     }
     try {
+      await api('/api/auth/signup', { method: 'POST', body: { username } });
+      const modalEl = document.getElementById('createAccountModal');
+      bootstrap.Modal.getInstance(modalEl).hide();
+      goTitle();
+    } catch (e) {
+      if (errorEl) {
+        errorEl.textContent = e.message;
+        errorEl.classList.remove('d-none');
+      }
+    }
+  }
+
+  async function authenticate(kind, rawUsername) {
+    const username = (rawUsername || '').trim();
+    const errorEl = document.getElementById('titleError');
+    if (errorEl) errorEl.classList.add('d-none');
+    if (!username) {
+      if (errorEl) {
+        errorEl.textContent = 'Please select a username to sign in.';
+        errorEl.classList.remove('d-none');
+      }
+      return;
+    }
+    try {
       const res = await api('/api/auth/' + kind, { method: 'POST', body: { username } });
       userToken = res.data.token;
       currentUser = res.data.user;
+      setNavVisibility();
       updateUserBadge();
       document.body.classList.remove('on-title');
       goCatalog();
@@ -249,6 +295,7 @@
 
   function goAdmin() {
     setActiveNav('admin');
+    setNavVisibility();
     document.body.classList.remove('on-title');
     if (!adminToken) {
       render(Views.adminLogin(async (username, password, form) => {
@@ -293,7 +340,8 @@
       onLogout: async () => {
         try { await api('/api/admin/logout', { method: 'POST' }); } catch (_) {}
         adminToken = null;
-        goAdmin();
+        setNavVisibility();
+        goTitle();
       },
 
       onAddLesson: async (title) => {

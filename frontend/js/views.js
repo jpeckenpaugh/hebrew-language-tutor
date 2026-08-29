@@ -23,10 +23,12 @@ function esc(value) {
 }
 
 const Views = {
-  /* Title screen: sign-in / create account / admin entry.
-   * `onSignIn(username)` and `onCreate(username)` are called with the entered
-   * username; `onAdmin()` opens the (unchanged) dummy admin gate. */
-  title(onSignIn, onCreate, onAdmin) {
+  /* Title screen: sign-in picker / create account / admin entry.
+   * `users` is the list from GET /api/users. `onSignIn(username)` is called
+   * with the selected username (selecting alone does not sign in);
+   * `onCreate()` opens the Create Account modal; `onAdmin()` opens the
+   * (unchanged) dummy admin gate. */
+  title(onSignIn, onCreate, onAdmin, users) {
     const wrap = el(
       '<div class="row justify-content-center py-5">' +
         '<div class="col-md-6 col-lg-5">' +
@@ -36,13 +38,13 @@ const Views = {
           '</div>' +
           '<div class="card p-4">' +
             '<form id="titleForm">' +
-              '<div class="mb-3">' +
-                '<label class="form-label" for="titleUsername">Username</label>' +
-                '<input class="form-control" id="titleUsername" autocomplete="username" placeholder="Enter your username">' +
+              '<div class="mb-3" id="pickerGroup">' +
+                '<label class="form-label" for="titleUserPicker">Username</label>' +
+                '<select class="form-select" id="titleUserPicker"></select>' +
               '</div>' +
               '<div id="titleError" class="alert alert-danger d-none mb-3"></div>' +
               '<div class="d-grid gap-2">' +
-                '<button type="submit" class="btn btn-primary">Sign In</button>' +
+                '<button type="submit" class="btn btn-primary" id="titleSignIn">Sign In</button>' +
                 '<button type="button" class="btn btn-outline-primary" id="titleCreate">Create Account</button>' +
               '</div>' +
             '</form>' +
@@ -52,14 +54,63 @@ const Views = {
         '</div>' +
       '</div>'
     );
-    const usernameEl = wrap.querySelector('#titleUsername');
+    const picker = wrap.querySelector('#titleUserPicker');
+    const signInBtn = wrap.querySelector('#titleSignIn');
+    if (users && users.length) {
+      users.forEach((u) => {
+        const opt = document.createElement('option');
+        opt.value = u.username;
+        opt.textContent = u.username;
+        picker.appendChild(opt);
+      });
+    } else {
+      picker.innerHTML = '<option value="" selected disabled>No accounts yet</option>';
+      picker.disabled = true;
+      signInBtn.disabled = true;
+      picker.parentElement.appendChild(
+        el('<div class="alert alert-info mt-2 mb-0">No accounts yet. Use <strong>Create Account</strong> below to create your first account.</div>')
+      );
+    }
     wrap.querySelector('#titleForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      onSignIn(usernameEl.value);
+      onSignIn(picker.value);
     });
-    wrap.querySelector('#titleCreate').addEventListener('click', () => onCreate(usernameEl.value));
+    wrap.querySelector('#titleCreate').addEventListener('click', () => onCreate());
     wrap.querySelector('#titleAdmin').addEventListener('click', () => onAdmin());
     return wrap;
+  },
+
+  /* Create Account modal (Bootstrap). `onSubmit(username)` is called with the
+   * entered username; blank usernames are rejected by the caller. */
+  createAccountModal(onSubmit) {
+    const modalEl = el(
+      '<div class="modal fade" id="createAccountModal" tabindex="-1" aria-hidden="true">' +
+        '<div class="modal-dialog">' +
+          '<div class="modal-content">' +
+            '<div class="modal-header">' +
+              '<h5 class="modal-title">Create Account</h5>' +
+              '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
+            '</div>' +
+            '<form id="createAccountForm">' +
+              '<div class="modal-body">' +
+                '<label class="form-label" for="createUsername">Username</label>' +
+                '<input class="form-control" id="createUsername" autocomplete="username" placeholder="Enter a username">' +
+                '<div id="createError" class="alert alert-danger d-none mt-3 mb-0"></div>' +
+              '</div>' +
+              '<div class="modal-footer">' +
+                '<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>' +
+                '<button type="submit" class="btn btn-primary">Create Account</button>' +
+              '</div>' +
+            '</form>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+    modalEl.querySelector('#createAccountForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      onSubmit(modalEl.querySelector('#createUsername').value);
+    });
+    return modalEl;
   },
 
   /* Catalog: grid of lessons. `onOpen(lessonId)` called when clicked. */
@@ -162,12 +213,14 @@ const Views = {
           '<span class="text-muted" id="studyCount"></span>' +
         '</div>' +
         '<div class="card study-item p-4 mb-4 text-center" id="studyCard">' +
-          '<h3 class="mb-1" id="studyEnglish"></h3>' +
-          '<div class="mb-2"><em class="text-muted" id="studyTransliteration"></em></div>' +
-          '<h5 class="text-muted mb-3" id="studyHebrew"></h5>' +
-          '<div class="d-flex justify-content-center gap-2">' +
-            '<button class="btn btn-sm btn-outline-secondary" id="speakEnglish">🔊 English</button>' +
-            '<button class="btn btn-sm btn-outline-secondary" id="speakHebrew">🔊 Hebrew</button>' +
+          '<div class="term-row mb-2">' +
+            '<span class="term-en" id="studyEnglish"></span>' +
+            '<button class="tts-icon" id="speakEnglish" type="button" aria-label="Speak English">🔊</button>' +
+          '</div>' +
+          '<div class="mb-3"><em class="text-muted" id="studyTransliteration"></em></div>' +
+          '<div class="term-row mb-3">' +
+            '<span class="term-he" id="studyHebrew"></span>' +
+            '<button class="tts-icon" id="speakHebrew" type="button" aria-label="Speak Hebrew">🔊</button>' +
           '</div>' +
         '</div>' +
         '<div class="d-flex justify-content-between">' +
@@ -537,7 +590,7 @@ const Views = {
       el(
         '<div class="d-flex justify-content-between align-items-center mb-3">' +
           '<h2 class="mb-0">Admin</h2>' +
-          '<button class="btn btn-outline-danger" id="adminLogout">Sign Out</button>' +
+          '<button class="btn btn-outline-danger" id="adminLogout">Log out</button>' +
         '</div>'
       )
     );
