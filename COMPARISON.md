@@ -69,6 +69,7 @@ both experiments and compares them in detail.
 | **Data richness** | Includes transliteration (pronunciation guide) per item | Transliteration added in the Sprint 01 pass (50 seed items); one non-seed item blank |
 | **Learner identity / progress** | None | Per-user accounts, per-user score history, incorrect-answer review, known-word progress |
 | **UI/UX refinements (Sprint 02)** | None | Sign-in user picker + Create Account modal, larger terms, inline TTS icons, simplified nav (no top-nav Admin link / "Signed in as" badge), Admin "Log out" → Title |
+| **Sprint 03 (UI polish + levels)** | None | Fixed breadcrumb navigation, removed footer, page transitions, Study Auto-Play, Exam selection indicator, enlarged/centered Quiz/Exam question, Admin button rename + automatic Admin sign-in, and lesson `level` (1–5) + `emoji` fields (backend + admin editing) |
 | **Code volume** | ~370 lines | ~1,450 lines (≈4×) |
 | **Run mechanism** | `python3 -m http.server` (port 8080) | Uvicorn + venv (port 8000), with `install.sh` provisioning |
 | **Error handling / escaping** | Minimal; `innerHTML` templates, no escaping | Escaping, 422/404 paths, 401 re-auth, loading/error states |
@@ -152,6 +153,15 @@ both experiments and compares them in detail.
    `GET /api/users` endpoint). It is a good example of how the decomposed app
    can absorb a frontend-focused refinement with no schema or data-model change,
    unlike the static POC where such flows do not exist at all.
+8. **Sprint 03 mixed UI polish with a small, well-scoped backend extension.** The
+   pass fixed navigation, removed the footer, added transitions, Study Auto-Play,
+   an Exam selection indicator, an enlarged/centered question, and automatic
+   Admin sign-in almost entirely in the frontend, while adding just the `level`
+   and `emoji` fields on lessons to the backend. It shows the decomposed app can
+   absorb a browser-interaction-heavy refinement with minimal schema change
+   (idempotent `ALTER TABLE` additions plus seed back-fill), whereas the static
+   POC cannot — its vocabulary is hardcoded, so a "level" or "emoji" concept
+   would have no data model or admin path to store it in.
 
 ---
 

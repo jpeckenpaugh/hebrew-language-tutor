@@ -12,6 +12,17 @@ text-to-speech icons, and a simplified navigation (the top-nav Admin link and
 the "Signed in as" badge were removed, and Admin sign-out now returns to the
 main Title screen).
 
+The Sprint 03 pass was a mixed frontend-focused pass with one small backend
+addition. It fixed the Catalog breadcrumb navigation, removed the app footer,
+added smooth page transitions (cross-fade with a graceful fallback), added a
+Study **Auto-Play** control that speaks each item hands-free, gave Exam a neutral
+selection indicator, centered and enlarged the Quiz/Exam question and answer
+options, renamed the Title-screen "Admin Area" button to "Admin", and made Admin
+sign-in automatic (a fixed credential behind the retained dummy gate). It also
+added a **Level** (1–5) and a single **emoji** to each lesson — stored on the
+backend, shown on the Catalog cards and Lesson screen, and editable in the Admin
+area.
+
 The frontend is a plain HTML/CSS/JS single-page app (Bootstrap 5.3.3 as the
 baseline UI framework), and the backend is a FastAPI service backed by SQLite.
 All application state — lessons, vocabulary, users, saved scores, and known-word
@@ -68,6 +79,38 @@ pros/cons), see [`COMPARISON.md`](COMPARISON.md).
 - **Backend as state source** — the frontend holds no authoritative copy of
   lessons, scores, users, or progress; it reads and writes everything through the
   API.
+- **Fixed Catalog breadcrumb navigation** — the Catalog breadcrumb on the Lesson
+  and Study screens and the results screen's "All Lessons" button now return to
+  the Lesson Catalog, wired via event delegation so every dynamically-rendered
+  link works after the page renders.
+- **Removed app footer** — the footer line is gone; the page ends after the main
+  content.
+- **Page transitions** — a smooth cross-fade when navigating between screens,
+  degrading gracefully to an instant swap on browsers without View Transitions
+  support.
+- **Study Auto-Play** — a green "play" button at the top right of the Study
+  screen speaks the current English term, pauses ~2s, speaks the Hebrew term,
+  pauses ~4s, then advances and repeats through the current lesson. Playback
+  stops at the end of the lesson; the control toggles to a stop control. Where
+  speech is unsupported, playback advances on the same timing without audio.
+- **Exam selection indicator** — in Exam mode, a selected answer gets a neutral
+  grey highlight so the user sees it was accepted without revealing correctness.
+- **Centered, enlarged Quiz/Exam question** — the prompt is the English word
+  alone, centered and enlarged (~3.5rem), with the Hebrew answer options enlarged
+  (~2.2rem) for readability.
+- **Admin button rename** — the Title-screen button reads "Admin" instead of
+  "Admin Area".
+- **Automatic Admin sign-in** — clicking "Admin" signs in as Admin automatically
+  (a fixed credential through the retained dummy gate); the Admin sign-in form
+  was removed.
+- **Lesson Level indicator** — lessons carry a `level` (1–5; the five seeded
+  lessons are Level 1), shown as a "Level N" badge on the Catalog cards and the
+  Lesson screen, selectable in the Admin area, and exposed through the lessons
+  API. No lesson gating/unlocking is added.
+- **Lesson emoji** — each lesson carries a single `emoji` (the five seeded
+  lessons are back-filled: 👋 🔢 👨👩👧 🍎 ⚡), shown on the Catalog cards,
+  assigned via a bundled curated emoji picker in the Admin area, and exposed
+  through the lessons API.
 
 ## Technology stack
 
@@ -135,21 +178,21 @@ stop the server, delete `backend/english_tutor.db`, and start `./run.sh` again
 ├── instructions/
 │   ├── build/                  # v0.1 role instructions
 │   │   └── summaries/          # v0.1 per-stage role summaries
-│   ├── enhancements/           # enhancement pipeline (sprint 01, sprint 02)
-│   │   └── summaries/          # per-stage role summaries (sprints 01, 02)
+│   ├── enhancements/           # enhancement pipeline (sprints 01–03)
+│   │   └── summaries/          # per-stage role summaries (sprints 01–03)
 │   ├── debug/                  # debug pipeline (investigate / fix / verify)
 │   │   └── summaries/          # debug per-stage role summaries
 │   └── meta/                   # Stage Manager meta role + session reports
 │       └── summaries/          # durable session-report log
-├── features/                   # sprint 02 feature files (01–07) + briefs/
-│   └── briefs/                 # sprint 02 feature briefs
+├── features/                   # sprint 03 feature files (01–10) + briefs/
+│   └── briefs/                 # sprint 03 feature briefs
 ├── archive/                    # archived v0.1 baseline (build/) + sprint 01 (sprint01/)
-├── enhancements/               # sprint 02 concept (sprint02.md) + agreed scope
+├── enhancements/               # sprint 03 concept (sprint03.md) + agreed scope
 ├── bugs/                       # bug reports (resolved/ holds closed bugs)
 ├── tmp/                        # gitignored scratch/log folder (not committed)
 ├── docs/
-│   ├── architecture.md         # technical specification (Parts A, B, and C)
-│   └── verification-report.md  # Stage 8 verification results (Parts A, B, and C)
+│   ├── architecture.md         # technical specification (Parts A, B, C, D)
+│   └── verification-report.md  # Stage 8 verification results (Parts A, B, C, D)
 ├── requirements.txt
 ├── install.sh
 └── run.sh
@@ -165,7 +208,12 @@ submission/retrieval, incorrect-answer review, known-word progress, learner
 auth/session endpoints, and the admin login/logout gate with token-protected
 lesson/vocab mutating routes. The Sprint 02 pass added the public `GET /api/users`
 endpoint (lists existing accounts, ordered by `id`) to back the Title-screen
-sign-in picker. The backend serves the frontend static files at `/`.
+sign-in picker. The backend serves the frontend static files at `/`. The Sprint
+03 pass added the `level` (integer 1–5) and `emoji` (single string) fields on
+`lessons` via idempotent `ALTER TABLE` migrations, back-filled the five seeded
+lessons with Level 1 and their specific emojis (👋 🔢 👨👩👧 🍎 ⚡), exposed both
+in the catalog/detail responses, accepted them on admin lesson create (defaults
+1 / 📘), and converted `PUT /api/admin/lessons/{id}` to partial-edit semantics.
 
 The frontend (Stage 7) is a single-page app split into a controller
 (`app.js` — fetch calls, navigation, admin/user token handling, auth, TTS,
@@ -179,7 +227,19 @@ pass refined the frontend: the Title screen's free-text username field became a
 sign-in picker (populated from `GET /api/users`) with a separate Create Account
 modal, study terms gained inline TTS speaker icons and larger text, Admin
 sign-out routes back to the main Title screen, and the top-nav Admin link and
-"Signed in as" badge were removed.
+"Signed in as" badge were removed. The Sprint 03 pass polished the frontend and
+added the browser-dependent interactions: navigation is now event-delegated so
+every dynamically-rendered link (Catalog breadcrumbs, results "All Lessons")
+works; the app footer was removed; screen changes cross-fade via the View
+Transitions API (instant-swap fallback); Study gained a green Auto-Play control
+that speaks each English/Hebrew pair on a ~2s/~4s cadence and stops at the end of
+the lesson; Exam shows a neutral selection highlight without revealing
+correctness; the Quiz/Exam prompt is the English word alone, centered and
+enlarged, with enlarged Hebrew options; the Title "Admin" button was renamed and
+Admin signs in automatically via a fixed credential (the Admin sign-in form was
+removed); and the Catalog cards and Lesson screen render a "Level N" badge and
+lesson emoji, with the Admin add/edit forms gaining Level (1–5) and a bundled
+curated emoji picker.
 
 ## Project status
 
@@ -190,8 +250,11 @@ backend/API + 12 frontend static); no failures were found, and all v0.1
 endpoints behaved unchanged. The Sprint 02 pass (Part C) added the frontend
 UI/UX refinements and passed all 12 checklist items (4 backend/API live + 2
 backend static + 6 frontend static); no failures were found, and all Part A/B
-endpoints behaved unchanged. The full checklists and evidence are in
-`docs/verification-report.md`.
+endpoints behaved unchanged. The Sprint 03 pass (Part D) added the UI polish,
+Study Auto-Play, and lesson level/emoji features and passed all 34 checklist
+items (22 backend/API live + 12 frontend static); no failures were found, and
+all Parts A–C endpoints behaved unchanged. The full checklists and evidence are
+in `docs/verification-report.md`.
 
 ## Known issues & limitations
 
@@ -227,6 +290,21 @@ These are documented as-is and are not hidden:
    accounts in `ORDER BY id` order; downstream consumers should not rely on a
    specific order, since the API contract leaves ordering to implementation
    choice (recorded in `docs/verification-report.md`, Part C limitation L1).
+9. **Quiz/Exam question sizing is approximate.** The English prompt is ~3.5rem
+   and the Hebrew options ~2.2rem (feature f), tuned for layout rather than a
+   literal 3× of the prior sizes; this is within the brief's "about 3×" allowance
+   (recorded in `docs/verification-report.md`, Part D limitation L1).
+10. **Auto-Play timing is fixed, not speech-latency-adaptive.** Study Auto-Play
+   drives the sequence on fixed ~2s/4s pauses (matching the audio-free case), so
+   on slow speech engines the audio may finish slightly before the next segment;
+   this matches the brief's "roughly" allowance. Stop-at-end and resync-on-
+   navigation are implemented but were verified statically, not in a live browser
+   (Part D limitation L2).
+11. **Automatic Admin sign-in uses a fixed credential.** Clicking "Admin" signs
+   in via `admin`/`admin` through the retained dummy gate (any non-empty
+   credential passes); there is no real credential verification. This is the
+   documented simplification per scope constraint m, not a security guarantee
+   (Part D limitation L3).
 
 ## Suggested next actions
 
@@ -245,3 +323,13 @@ These are documented as-is and are not hidden:
   if a stable order must be guaranteed.
 - Consider serving pre-built questions from the backend if client-side
   distractor construction becomes a concern.
+- Add browser-driven tests for the Sprint 03 interactive flows: the breadcrumb /
+  "All Lessons" navigation, the View Transitions cross-fade, Study Auto-Play
+  (audio timing, stop-at-end, resync-on-navigation), the Exam selection
+  indicator, and the automatic Admin sign-in — these were verified by static
+  review only.
+- Reconsider the fixed `admin`/`admin` credential used for automatic Admin
+  sign-in if real authentication is ever required; it is a deliberate
+  simplification, not a security guarantee.
+- Consider whether the approximate Quiz/Exam sizing (3.5rem/2.2rem) should be
+  re-tuned after real-browser review across viewport widths.
