@@ -2,7 +2,12 @@
 
 ## Status
 
-Analyzed.
+Approved.
+
+> Human gate note (2026-08-29): Only **Issue 1** (autofocus the username field)
+> is approved for the fix. Issue 2 was not reproduced in the current code path
+> and is **out of scope** for this run; it remains flagged pending human browser
+> confirmation.
 
 ## Summary
 
