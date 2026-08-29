@@ -20,15 +20,19 @@ both experiments and compares them in detail.
   Backend, Frontend, Verification, and Documentation. Each stage wrote to the
   `instructions/`, `features/`, `docs/`, and `summaries/` folders (now archived
   under `instructions/build/` and `features/completed/`) and handed off to the
-  next.
+  next. A second 9-stage **enhancement pipeline** (Sprint 01) extended it with
+  learner identity, pronunciation, and progress features.
 - **Architecture:** a real client/server application. A **FastAPI** backend with
   **SQLite** persistence is the single source of truth for lessons, vocabulary,
-  and saved scores. The frontend is a plain HTML/CSS/JS single-page app
-  (Bootstrap 5.3.3, hosted locally) that reads and writes everything through the
-  backend API.
+  users, saved scores, and known-word progress. The frontend is a plain
+  HTML/CSS/JS single-page app (Bootstrap 5.3.3, hosted locally) that reads and
+  writes everything through the backend API.
 - **Features:** the full concept — lesson catalog, study/quiz/exam modes, score
   and attempt persistence with a scores history view, full navigation, and a
-  dummy-gated **admin mode** for adding/editing lessons and vocabulary.
+  dummy-gated **admin mode** for adding/editing lessons and vocabulary — plus the
+  Sprint 01 enhancements: per-user accounts (no password), a Title screen,
+  pronunciation guides (transliteration), text-to-speech, per-user score
+  history, incorrect-answer review, and known-word progress.
 - **Code volume:** roughly 1,450 lines of application code, plus environment
   scripts, tests/verification, and extensive documentation.
 
@@ -56,7 +60,8 @@ both experiments and compares them in detail.
 | **Admin mode** | None | Login gate + lesson/vocab add & edit |
 | **Score persistence** | None (in-memory `score` variable only) | Saved to SQLite, viewable per-lesson history |
 | **Navigation** | Home ↔ lesson ↔ mode | Full SPA nav: catalog, scores, admin, breadcrumbs |
-| **Data richness** | Includes transliteration (pronunciation guide) per item | No transliteration field (schema is english/hebrew only) |
+| **Data richness** | Includes transliteration (pronunciation guide) per item | Transliteration added in the Sprint 01 pass (50 seed items); one non-seed item blank |
+| **Learner identity / progress** | None | Per-user accounts, per-user score history, incorrect-answer review, known-word progress |
 | **Code volume** | ~370 lines | ~1,450 lines (≈4×) |
 | **Run mechanism** | `python3 -m http.server` (port 8080) | Uvicorn + venv (port 8000), with `install.sh` provisioning |
 | **Error handling / escaping** | Minimal; `innerHTML` templates, no escaping | Escaping, 422/404 paths, 401 re-auth, loading/error states |
@@ -123,9 +128,11 @@ both experiments and compares them in detail.
    concept requested. If "keep it simple" were read as "no backend beyond
    serving files," the POC's model is leaner — but that reading drops required
    features, so the decomposed app is the correct interpretation of the concept.
-4. **Transliteration was dropped in the decomposed build.** The POC includes
-   pronunciation guides, which are pedagogically valuable; the decomposed app's
-   schema has no transliteration field. Worth flagging as a possible enhancement.
+4. **Transliteration parity was restored in the Sprint 01 pass.** The POC
+   included pronunciation guides, which the original decomposed build lacked;
+   the Sprint 01 enhancement pass added a `transliteration` field so the
+   decomposed app now matches the POC on this dimension (and adds text-to-speech
+   and per-user progress on top).
 5. **Admin-created lessons start with 0 vocabulary items.** A newly created
    lesson has no vocabulary until items are added one at a time, and there is no
    UI affordance to bulk-add items — so populating a new lesson is tedious.
