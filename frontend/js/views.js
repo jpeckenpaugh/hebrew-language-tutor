@@ -188,11 +188,25 @@ const Views = {
     const speakEnBtn = wrap.querySelector('#speakEnglish');
     const speakHeBtn = wrap.querySelector('#speakHebrew');
 
+    let currentUtter = null;
+
     function speak(text, lang) {
       if (!('speechSynthesis' in window)) return;
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
+      const clean = String(text).replace(/[!?.,؛،;:]+$/g, '').trim();
+      if (!clean) return;
+      if (currentUtter) {
+        window.speechSynthesis.cancel();
+        currentUtter = null;
+      }
+      const utter = new SpeechSynthesisUtterance(clean);
       utter.lang = lang;
+      const finish = () => {
+        currentUtter = null;
+        window.speechSynthesis.resume();
+      };
+      utter.onend = finish;
+      utter.onerror = finish;
+      currentUtter = utter;
       window.speechSynthesis.speak(utter);
     }
 

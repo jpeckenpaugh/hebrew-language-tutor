@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved.
+Fixed.
 
 ## Summary
 
@@ -126,3 +126,30 @@ client-side, no backend change):
 
 > Human gate: approve the revised fail-safe hardening before the fix stage runs.
 > The Cause 2 data cleanup is already done and does not need a code change.
+
+## Fix Implementation (Stage 2)
+
+Implemented the approved fail-safe hardening in `frontend/js/views.js` `speak()`
+(lines 191-211), client-side only; no backend change.
+
+**Changes made:**
+- Guarded `cancel()` so it only runs when an utterance is actually in progress
+  (tracked via a `currentUtter` variable), instead of cancelling unconditionally
+  before every utterance — avoiding the Chromium cancel-then-speak stall.
+- Attached `onend`/`onerror` handlers on the utterance; each clears `currentUtter`
+  and calls `speechSynthesis.resume()` so the engine is recovered even after a
+  failed or interrupted utterance. A single bad entry can no longer disable TTS
+  for the rest of the session.
+- Strips trailing punctuation (`! ? . , ؛ ، ; :`) from the text before speaking,
+  so a stray `!` (if it ever reappears in data) is never read aloud.
+
+**Automated verification result:** PASS
+- `node --check frontend/js/views.js` — JS syntax valid.
+- `./run.sh` (uvicorn on port 8099) — app starts and serves
+  `GET /api/lessons/1/vocab` with clean data (`id 1 hebrew = "שלום"`, no `!`),
+  confirming the data-side of the bug stays resolved.
+
+**Human confirmation pending:** not yet tested in a real browser. Please verify
+TTS across multiple consecutive vocab items (English and Hebrew) and confirm no
+utterance reads "Exclamation Point". Stage 3 will mark this `Resolved` after
+your confirmation.
