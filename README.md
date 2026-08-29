@@ -96,7 +96,7 @@ browser.
 │       └── summaries/          # v0.1 per-stage role summaries
 ├── features/
 │   └── completed/              # v0.1 feature capabilities and briefs
-├── enhancements/               # proposed enhancement feature briefs
+├── enhancements/               # sprint concept (sprint01.md) + scope
 ├── docs/
 │   ├── architecture.md         # technical specification
 │   └── verification-report.md  # Stage 8 verification results

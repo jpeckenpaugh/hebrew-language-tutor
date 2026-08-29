@@ -19,6 +19,7 @@ modify or add to them rather than creating them fresh.
 │   ├── sprint01.md                  sprint concept (Stage 1 source)
 │   └── scope.md                     agreed scope of this pass (Stage 1 output)
 ├── features/                        Stage 2 (one file per feature)
+│   ├── completed/                   (existing v0.1 features — context)
 │   ├── 01-<name>.md
 │   ├── 02-<name>.md
 │   └── briefs/
@@ -90,7 +91,7 @@ stage is fully done.
   branch and push to `origin`.
 - Use a commit message in the form `stage <NN>: <brief summary>`, where `<NN>`
   is the stage number and the summary briefly describes the stage's changes
-  (for example `stage 6: add transliteration field and admin edit support`).
+  (for example `stage 06: add transliteration field and admin edit support`).
 - Do not commit work that is incomplete or from another stage.
 
 ## Verification of the pipeline
