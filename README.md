@@ -90,12 +90,16 @@ browser.
 │   ├── js/app.js               # controller: navigation, API client, admin flow
 │   ├── js/views.js             # pure rendering of all views
 │   └── static/vendor/bootstrap/# locally hosted Bootstrap
-├── concept.md                  # original product brief
-├── features/                   # feature capabilities and briefs
+├── concept.md                  # original product brief (starting point)
+├── instructions/
+│   └── build/                  # v0.1 role instructions
+│       └── summaries/          # v0.1 per-stage role summaries
+├── features/
+│   └── completed/              # v0.1 feature capabilities and briefs
+├── enhancements/               # proposed enhancement feature briefs
 ├── docs/
 │   ├── architecture.md         # technical specification
 │   └── verification-report.md  # Stage 8 verification results
-├── summaries/                  # per-stage role summaries
 ├── requirements.txt
 ├── install.sh
 └── run.sh

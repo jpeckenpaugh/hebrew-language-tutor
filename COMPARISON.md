@@ -18,8 +18,9 @@ both experiments and compares them in detail.
 - **Process:** built through a **9-stage decomposed role pipeline** — Concept,
   Feature Decomposition, Feature Briefs, System Engineering, Architecture,
   Backend, Frontend, Verification, and Documentation. Each stage wrote to the
-  `instructions/`, `features/`, `docs/`, and `summaries/` folders and handed off
-  to the next.
+  `instructions/`, `features/`, `docs/`, and `summaries/` folders (now archived
+  under `instructions/build/` and `features/completed/`) and handed off to the
+  next.
 - **Architecture:** a real client/server application. A **FastAPI** backend with
   **SQLite** persistence is the single source of truth for lessons, vocabulary,
   and saved scores. The frontend is a plain HTML/CSS/JS single-page app
