@@ -15,26 +15,28 @@ instead, the agreed scope is drawn from the sprint concept.
 
 - `enhancements/sprint01.md` — the sprint concept (the single, authoritative
   source for this pass).
-- The existing application and its constraints (see `concept.md`, the v0.1
-  build artifacts under `features/completed/`, and `docs/architecture.md`) as
-  context for what is being extended.
+- The existing application and its constraints — read the existing documentation
+  **and code** (`docs/architecture.md`, `features/completed/`, `backend/`,
+  `frontend/`) as needed for context on what is being extended.
 - Stakeholder guidance on scope.
 
 ## Outputs
 
 - `enhancements/scope.md` — a concise scope document stating:
-  - Which sprint items are in scope for this pass.
-  - The high-level intent of each in-scope item.
+  - Every concept/idea in `sprint01.md`, categorized as a feature, a constraint,
+    or a boundary (no concept dropped).
+  - The high-level intent of each item.
   - Any constraints or boundaries on the pass.
 
 ## Instructions
 
 1. Read `enhancements/sprint01.md` in full (do not skip any item).
-2. Determine which items are in scope for this pass, based on the sprint concept
-   and stakeholder guidance.
-3. Write `enhancements/scope.md` listing the in-scope items by their letter (a.,
-   b., c., …) from `enhancements/sprint01.md`.
-4. For each in-scope item, record its high-level intent in plain language.
+2. For every concept in `enhancements/sprint01.md`, determine whether it is a
+   feature, a constraint, or a boundary; nothing is left out of `scope.md`.
+   The sprint items do not map 1-to-1 to features.
+3. Write `enhancements/scope.md` listing every item by its letter (a., b., c.,
+   …) from `enhancements/sprint01.md`, each tagged with its category.
+4. For each item, record its high-level intent in plain language.
 5. Record any constraints or boundaries on the pass (for example, scope limits,
    or that no out-of-scope existing behavior should be changed).
 6. Keep the document short and readable; it is the reference for every
@@ -50,6 +52,8 @@ instead, the agreed scope is drawn from the sprint concept.
 - Do NOT rewrite the existing product concept or drop existing product
   constraints.
 - Do NOT silently change or drop agreed constraints.
+- Do NOT use the codebase reading to specify implementation; `scope.md` remains
+  non-technical (no API routes, packages, schemas, or code structure).
 
 ## Summary
 
