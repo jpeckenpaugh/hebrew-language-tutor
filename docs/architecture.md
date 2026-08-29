@@ -529,3 +529,160 @@ db.py -> SQLite (lessons, vocab, scores, users, attempt_items, known_words)
   Speech API; no speed/voice controls, no quiz/exam audio (Brief 05).
 - No unrequested analytics/reporting beyond per-user score history and
   known-word progress.
+
+---
+
+# Part C — Sprint 02 Enhancement Pass (UI/UX refinements)
+
+This section defines the architectural deltas required by
+`enhancements/scope.md` and `features/briefs/*.md` (features a–g). It **extends**
+the v0.1 spec (Part A) and the Sprint 01 spec (Part B); it does not replace
+either. Every item in Parts A and B remains in force unless explicitly
+superseded below.
+
+Sprint 02 is a frontend-focused UI/UX refinement. Per `enhancements/scope.md`
+constraint **i**, the **only backend addition** is a single public, read-only
+endpoint listing existing users (feature a, Brief 01). All other features are
+frontend-only and require **no schema, API, or backend change**. No existing
+column or table is added, removed, or modified in this pass.
+
+## 16. Data model and database schema changes
+
+**None.** The Sprint 02 pass introduces no schema changes. The existing
+`users`, `lessons`, `vocab`, `scores`, `attempt_items`, and `known_words` tables
+(Parts A and B) are unchanged. The list-users endpoint reads the existing
+`users` table.
+
+## 17. API contract changes
+
+A single new endpoint is added. All additions follow the same conventions as
+Parts A and B: JSON, base path `/api`, `{"data": ...}` on success.
+
+### Users (feature a, Brief 01; new)
+
+**`GET /api/users`** — **public, no auth** (shown on the Title screen before
+sign-in).
+- 200 → `{"data": [ {"id": 1, "username": "…"}, {"id": 2, "username": "…"}, … ]}`
+  — one entry per existing user, ordered by implementation choice.
+- Requires a new route handler registered in `backend/app/main.py` (per
+  `environment-notes.md`, the FastAPI app is built/mounted there). This is the
+  single in-scope backend addition (scope constraint i).
+- No auth header; must succeed for an unauthenticated client on the Title
+  screen.
+
+### Unchanged / not modified
+- `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/logout`, and
+  `GET /api/auth/me` — unchanged (Sprint 01). Account creation (Brief 02) reuses
+  the existing `signup`; sign-in reuses the existing `login`, now driven by a
+  selected username from the picker.
+- `POST /api/admin/logout` — unchanged (Sprint 01). Feature c (admin sign-out)
+  reuses it; it already invalidates the admin token and returns
+  `{"data": {"logged_out": true}}`. **No API change for feature c.**
+- All catalog, scores, progress, and admin vocab/lesson contracts — unchanged.
+
+## 18. Application state flow changes
+
+The Sprint 01 flow (Part B §11) is refined as follows:
+
+1. **Title screen — sign-in picker (feature a, Brief 01).** On load the Title
+   screen calls `GET /api/users` and renders a dropdown of existing usernames in
+   place of the Sprint 01 free-text username field (which is removed). Selecting
+   a name does **not** sign the user in; the user still clicks Sign In, which
+   calls the existing `POST /api/auth/login` with the selected username. If the
+   endpoint returns an empty array, the picker area instead shows a hint
+   directing the user to Create Account (frontend-only behavior driven by an
+   empty array).
+2. **Create Account modal (feature b, Brief 02).** "Create Account" opens a
+   modal asking for a non-empty username; submitting calls the existing
+   `POST /api/auth/signup`. On success the modal closes and the user returns to
+   the Title screen **not signed in**; the new account appears in the picker on
+   refresh. No auto sign-in.
+3. **Admin sign-out (feature c, Brief 03).** The Admin UI replaces its separate
+   "Sign Out" button with a "Log out" control. Selecting it calls the existing
+   `POST /api/admin/logout` (token invalidation is already handled by the
+   backend) and then routes to the **main Title screen** (`goTitle()`) instead of
+   the Admin Sign In screen (`goAdmin()`). This is a pure frontend routing fix;
+   no backend change.
+4. **Nav / sub-nav cleanup (features f, g; Briefs 06, 07).** The top nav drops
+   the "Admin" link for signed-in users; the sub-nav drops the
+   "Signed in as {User}" badge. Frontend-only rendering changes; no state-flow
+   impact.
+
+The backend remains the single source of truth; the frontend only reflects what
+the API returns.
+
+## 19. Backend vs frontend responsibility changes
+
+### Backend (Stage 6) additionally owns
+- The `GET /api/users` endpoint (read the existing `users` table; public, no
+  auth), registered in `backend/app/main.py`.
+- Nothing else changes in this pass.
+
+### Frontend (Stage 7) additionally owns
+- Replacing the free-text sign-in field with the picker dropdown fed by
+  `GET /api/users`, including the empty-state "Create Account" hint (feature a).
+- The Create Account modal and its validation flow, calling the existing signup
+  endpoint without auto sign-in (feature b).
+- The Admin "Log out" control, calling the existing `POST /api/admin/logout` and
+  routing to the Title screen (`goTitle()`) instead of the Admin sign-in screen
+  (feature c).
+- Enlarging the English/Hebrew term text on Study, Quiz, and Exam screens via
+  CSS; the concrete size is an implementation choice and must not break layout
+  (feature d).
+- Presenting TTS as small inline speaker icons beside each English and Hebrew
+  term in Study cards, replacing the former separate-line buttons; reuses the
+  existing Web Speech API affordance (feature e).
+- Removing the "Admin" top-nav link for signed-in users (feature f) and the
+  "Signed in as {User}" sub-nav badge (feature g).
+
+### Shared contract notes
+- The picker and modal are frontend presentation over the existing signup/login
+  endpoints; the backend issues no new tokens and enforces no new identity in
+  this pass.
+- TTS remains entirely client-side (Web Speech API); no audio endpoint is added.
+
+## 20. Component interaction changes
+
+```
+Browser (frontend/static, Bootstrap, Web Speech API for TTS)
+   |
+   | GET  /api/users                  (public; Title screen picker)
+   | POST /api/auth/signup|login      (unchanged; create account / sign in)
+   | POST /api/auth/logout            (unchanged; learner logout)
+   | POST /api/admin/logout           (unchanged; admin logout -> Title screen)
+   | ...other /api/... contracts unchanged (Parts A & B)
+   v
+FastAPI app (app.main:app)
+   |-- routers/users.py   (new)  -> GET /api/users (public list)
+   |-- routers/auth.py            -> signup / login / logout / me (unchanged)
+   |-- routers/catalog.py         -> lessons / vocab (unchanged)
+   |-- routers/scores.py          -> attempts / review (unchanged)
+   |-- routers/progress.py        -> known-word progress (unchanged)
+   |-- routers/admin.py           -> login gate + mutations (unchanged)
+   |-- models.py                  -> Pydantic schemas (unchanged; add user-list schema)
+   v
+db.py -> SQLite (lessons, vocab, scores, users, attempt_items, known_words) [unchanged]
+```
+
+- The only new interaction is the public `GET /api/users` call from the Title
+  screen to populate the sign-in picker.
+- Admin sign-out now routes to the main Title screen via the existing admin
+  logout endpoint (feature c), matching learner sign-out.
+
+## 21. Explicitly unchanged / out of scope
+
+- **No schema changes** this pass: `users`, `lessons`, `vocab`, `scores`,
+  `attempt_items`, and `known_words` are unchanged (scope constraint i).
+- All Sprint 01 and v0.1 API contracts other than the new `GET /api/users` are
+  unchanged, including signup/login/logout/me, all catalog/vocab reads, scores,
+  review, progress, and admin routes.
+- The existing dummy admin gate and admin token namespace are unchanged.
+- Admin remains reachable only from the Title screen; the top-nav "Admin" link
+  is removed but the Title screen Admin entry is unchanged (feature f, Brief 06).
+- Learner and admin logout destinations are now consistent (both the Title
+  screen); no other auth flow changes (feature c, Brief 03).
+- TTS is limited to English/Hebrew forms in Study mode via the browser Web
+  Speech API; inline icons are a presentation-only change, with no new audio
+  features (feature e, Brief 05).
+- No new features are added beyond those in `enhancements/scope.md`
+  (constraint h).
