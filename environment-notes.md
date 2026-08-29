@@ -49,6 +49,17 @@ that the system relies on.
 
 ## Caveats / open items for downstream roles
 
+- **Browser-runtime capabilities (Sprint 03).** Two new runtime assumptions are
+  introduced by the Sprint 03 pass, both frontend-only with no dependency or
+  script changes:
+  - **Web Speech API** (`SpeechSynthesis`) — used by Study Auto-Play (item d)
+    to speak English/Hebrew terms. Where unsupported, playback must advance on
+    the same 2s/4s timing without audio.
+  - **View Transitions API** (`document.startViewTransition`) — used for
+    cross-fade page transitions (item c). Where unsupported, navigation must
+    fall back to the current instant swap with no errors.
+  Both are expected to degrade gracefully in browsers that lack support; the
+  Frontend Engineer stage (Stage 7) owns that fallback behavior.
 - **`run.sh` assumes `app.main:app`.** The backend entry point does not exist
   yet — Stage 6 must create `backend/app/main.py` with an `app` object, and
   `run.sh` expects the working directory / module layout to match. Adjust the
