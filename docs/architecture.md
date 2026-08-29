@@ -255,3 +255,277 @@ persist in SQLite.
 - No analytics/reporting beyond viewing saved scores.
 - No additional learning aids (audio, flashcards games, etc.).
 - No complex routing framework; basic navigation only.
+
+---
+
+# Part B — Sprint 01 Enhancement Pass (learner identity, pronunciation, progress)
+
+This section defines the architectural deltas required by `enhancements/scope.md`
+and `features/briefs/*.md` (features a–h). It **extends** the v0.1 spec in Part A
+above; it does not replace it. Every item in Part A remains in force unless
+explicitly superseded below.
+
+**Superseded v0.1 non-goals:** the following lines from section 9 are now
+explicitly in scope for this pass and no longer apply as non-goals:
+- "No per-user accounts beyond the dummy admin gate" → superseded by features c–h
+  (learner accounts, per-user scores, known-word tracking). The existing *dummy
+  admin gate* itself is unchanged (feature e).
+- "No additional learning aids (audio, …)" → superseded by features a–b
+  (transliteration guide and text-to-speech).
+
+All other Part A contracts remain unchanged where not described below.
+
+## 10. Data model and database schema changes
+
+New/changed tables are created by `app/db.py` on startup if absent (same
+idempotent pattern as v0.1). No existing column or table is removed.
+
+### `users` (new)
+
+| column      | type    | notes                              |
+|-------------|---------|------------------------------------|
+| `id`        | INTEGER | PRIMARY KEY AUTOINCREMENT          |
+| `username`  | TEXT    | non-empty, UNIQUE (NOT NULL)       |
+| `created_at`| TEXT    | ISO timestamp (NOT NULL)           |
+
+- There is **no password** column (feature c, constraint k). Identity is a
+  non-empty, unique username only.
+
+### `vocab` (modified — add one column)
+
+| column           | type | notes                                            |
+|------------------|------|--------------------------------------------------|
+| `transliteration`| TEXT | English pronunciation guide for the Hebrew word (NOT NULL) |
+
+- Every vocab item has a transliteration (feature a, Brief 04). Existing seed
+  data is extended so all 50 items carry a transliteration; admin-create/edit
+  must supply one. The `english` and `hebrew` columns are unchanged.
+
+### `scores` (modified — add one column)
+
+| column    | type    | notes                                    |
+|-----------|---------|------------------------------------------|
+| `user_id` | INTEGER | FK -> users.id (NOT NULL)                |
+
+- Every saved attempt is tied to a user (feature d, Brief 03). v0.1 columns
+  (`lesson_id`, `mode`, `correct`, `total`, `score_pct`, `taken_at`) are
+  unchanged. Scores are no longer global; they are per-user per-lesson.
+
+### `attempt_items` (new)
+
+| column    | type    | notes                                    |
+|-----------|---------|------------------------------------------|
+| `id`      | INTEGER | PRIMARY KEY AUTOINCREMENT                |
+| `score_id`| INTEGER | FK -> scores.id (NOT NULL)               |
+| `vocab_id`| INTEGER | FK -> vocab.id (NOT NULL)                |
+| `correct` | INTEGER | 1 = answered correctly, 0 = wrong (NOT NULL) |
+
+- Records the per-item result of a completed quiz/exam so the incorrect-answer
+  review (feature g) can be reconstructed per attempt. Populated from the
+  `answers` payload on `POST /api/scores` (see section 13).
+
+### `known_words` (new)
+
+| column    | type    | notes                                    |
+|-----------|---------|------------------------------------------|
+| `id`      | INTEGER | PRIMARY KEY AUTOINCREMENT                |
+| `user_id` | INTEGER | FK -> users.id (NOT NULL)                |
+| `vocab_id`| INTEGER | FK -> vocab.id (NOT NULL)                |
+| `known_at`| TEXT    | ISO timestamp when the word became known (NOT NULL) |
+| UNIQUE    |         | (`user_id`, `vocab_id`)                  |
+
+- A word becomes "known" for a user when they answer it **correctly on an exam**
+  (feature h, Brief 07). The `UNIQUE(user_id, vocab_id)` constraint makes
+  upsert idempotent (re-answering correctly does not duplicate). Quiz and study
+  never create `known_words` rows.
+
+## 11. Application state flow changes
+
+The v0.1 flow (Part A section 5) is extended as follows:
+
+1. **Open app → Title screen.** Instead of opening straight into the main
+   content, the frontend shows a Title screen (feature e). The user either signs
+   in / creates an account (feature c) or enters the Admin area (unchanged dummy
+   gate).
+2. **Session token.** On successful sign-in/account creation the backend issues
+   an opaque user token. The frontend stores it and sends it as
+   `Authorization: Bearer <user-token>` on all user-scoped calls. This is a
+   lightweight session; it is not a password and carries no credential
+   verification (constraint k).
+3. **Logout.** A logout control in the main UI (feature f) calls
+   `POST /api/auth/logout`, discards the token, and returns to the Title screen.
+   Works for both student and admin.
+4. **Study mode** now displays the Hebrew word, English form, and the English
+   transliteration (feature a), and offers text-to-speech buttons to speak the
+   English and Hebrew forms (feature b). No API writes.
+5. **Quiz / exam completion** `POST`s the attempt with the per-item `answers`
+   (section 13). The backend records the score, stores `attempt_items`, and —
+   **only for exam mode** — upserts `known_words` for correct items.
+6. **Incorrect review (feature g):** after a quiz/exam the user can request
+   `GET /api/scores/{id}/review` to see their wrong answers with the correct
+   answer shown.
+7. **Score history (feature d):** `GET /api/scores` returns only the signed-in
+   user's attempts (server-side filter by session token).
+8. **Progress (feature h):** the frontend fetches
+   `GET /api/lessons/{id}/progress` to show per-user known-word progress (e.g.,
+   "4 of 10 known").
+
+The backend remains the single source of truth (constraint j); the frontend only
+reflects what the API returns and holds no authoritative user/scores/progress
+state.
+
+## 12. Backend vs frontend responsibility changes
+
+### Backend (Stage 6) additionally owns
+- `users`, `attempt_items`, `known_words` tables; `vocab.transliteration`; the
+  `scores.user_id` column; migration/seed extension.
+- Username sign-in/account creation, user session-token issuance, and enforcing
+  the token on all user-scoped routes.
+- Filtering score history and progress to the current user.
+- Deriving "known" words from correct exam answers (upsert into `known_words`).
+- Returning the per-attempt incorrect-answer review.
+- Including `transliteration` in vocab create/edit and read contracts.
+
+### Frontend (Stage 7) additionally owns
+- The Title screen (sign-in / account create / Admin entry) and the main-UI
+  logout control.
+- Storing the user session token and sending it on user-scoped calls.
+- Text-to-speech via the browser's Web Speech API (`SpeechSynthesis`) for the
+  English and Hebrew forms in study mode (feature b). This is entirely
+  client-side; no backend audio endpoint is added.
+- Displaying the transliteration in study mode.
+- Requesting and rendering the incorrect-answer review and per-user progress.
+
+### Shared contract notes
+- The frontend builds quiz/exam questions from served vocab exactly as in v0.1,
+  and sends per-item results in the `answers` payload so the backend can derive
+  review and known words. The backend is the authority on known-word derivation.
+
+## 13. API contract changes
+
+All additions follow the same conventions as Part A: JSON, base path `/api`,
+`{"data": ...}` on success. User-scoped routes require
+`Authorization: Bearer <user-token>`; missing/invalid token → `401
+{"detail": "Not authenticated"}`.
+
+### Learner identity / session (features c, e, f)
+
+**`POST /api/auth/signup`** (create account)
+- Request body: `{"username": "…"}` (non-empty).
+- 201 → `{"data": {"user": {"id": 1, "username": "…"}, "token": "<opaque-user-token>"}}`
+- 409 → `{"detail": "Username already exists"}` if taken.
+- 422 → validation error if `username` is empty.
+
+**`POST /api/auth/login`** (sign in — no password)
+- Request body: `{"username": "…"}` (non-empty).
+- 200 → `{"data": {"user": {"id": 1, "username": "…"}, "token": "<opaque-user-token>"}}`
+- 401 → `{"detail": "User not found"}` if the username does not exist.
+- 422 → validation error if `username` is empty.
+
+**`POST /api/auth/logout`** (Bearer user token)
+- 200 → `{"data": {"logged_out": true}}`
+- 401 → invalid/missing token.
+
+**`GET /api/auth/me`** (Bearer user token) — optional convenience for the
+frontend to validate a stored token on load.
+- 200 → `{"data": {"id": 1, "username": "…"}}`
+- 401 → invalid/missing token.
+
+### Vocabulary (features a; modified read + admin contracts)
+
+All vocab reads (`GET /api/lessons/{id}`, `GET /api/lessons/{id}/vocab`) return
+each item with the new `transliteration` field:
+
+```
+{"id": 1, "english": "…", "hebrew": "…", "transliteration": "…"}
+```
+
+Admin create/edit now accept `transliteration`:
+- `POST /api/admin/lessons/{lesson_id}/vocab`
+  - Body: `{"english": "…", "hebrew": "…", "transliteration": "…"}`.
+- `PUT /api/admin/vocab/{vocab_id}`
+  - Body: any subset of `{english, hebrew, transliteration}` (at least one present).
+
+### Scores (features d, g; modified)
+
+**`POST /api/scores`** (Bearer user token) — extended with per-item `answers`.
+- Request body:
+  ```
+  {
+    "lesson_id": 1,
+    "mode": "quiz"|"exam",
+    "correct": 8,
+    "total": 10,
+    "answers": [ {"vocab_id": 1, "correct": true}, ... ]
+  }
+  ```
+- `user_id` is derived server-side from the session token (not sent by client).
+- 201 → `{"data": { ...v0.1 score fields..., "user_id": 1 }}`
+- Backend stores each `answers` row in `attempt_items`. If `mode == "exam"`, for
+  each `correct: true` answer it upserts a `known_words` row for this user
+  (feature h).
+- 422 → validation error (bad lesson, mode, counts, or `answers` shape).
+
+**`GET /api/scores`** (Bearer user token) — now filtered to the current user.
+- 200 → `{"data": [ {score fields..., "user_id": 1}, ... ]}` — only the signed-in
+  user's attempts, most recent first.
+
+**`GET /api/scores/{score_id}/review`** (Bearer user token) — feature g.
+- 200 → `{"data": {"id": <score_id>, "lesson_id": 1, "mode": "exam", "wrong": [ {"vocab_id": 3, "english": "…", "hebrew": "…", "transliteration": "…"}, ... ]}}`
+  where `wrong` lists only the items answered incorrectly for that attempt, with
+  the correct answer shown (the item itself is the correct answer, per v0.1
+  multiple-choice construction).
+- 404 → if the attempt does not exist or does not belong to the current user.
+- 401 → invalid/missing token.
+
+### Progress (feature h; new)
+
+**`GET /api/lessons/{lesson_id}/progress`** (Bearer user token)
+- 200 → `{"data": {"lesson_id": 1, "total": 10, "known": 4, "known_vocab_ids": [2, 5, 7, 9]}}`
+- `known` is the count of this lesson's vocab items in `known_words` for the
+  current user; `known_vocab_ids` lists them. 404 if lesson missing.
+
+## 14. Component interaction changes
+
+```
+Browser (frontend/static, Bootstrap, Web Speech API for TTS)
+   |
+   | fetch() JSON over /api/...
+   |   user-scoped calls carry Authorization: Bearer <user-token>
+   |   admin mutating calls carry Authorization: Bearer <admin-token>  (unchanged)
+   v
+FastAPI app (app.main:app)
+   |-- routers/auth.py   (new)  -> signup / login / logout / me
+   |-- routers/catalog.py       -> read lessons/vocab (+ transliteration)
+   |-- routers/scores.py        -> record attempt + answers, review, per-user history
+   |-- routers/progress.py (new) -> per-user known-word progress
+   |-- routers/admin.py         -> login gate + mutate lessons/vocab (unchanged + transliteration)
+   |-- models.py                -> Pydantic schemas for new/changed contracts
+   v
+db.py -> SQLite (lessons, vocab, scores, users, attempt_items, known_words)
+```
+
+- A user session token authorizes read/write of that user's scores, known words,
+  and review. Admin token (v0.1) continues to authorize admin mutations.
+- Text-to-speech stays entirely in the browser via the Web Speech API; no audio
+  is transmitted to or from the backend.
+
+## 15. Explicitly unchanged / out of scope
+
+- The existing **dummy admin gate** (`POST /api/admin/login` and admin token
+  enforcement) is unchanged (feature e, scope note). Admin and learner identity
+  are separate token namespaces.
+- v0.1 `lessons` table, catalog endpoints, and study/quiz/exam mechanics
+  (question construction, immediate quiz feedback, deferred exam results) are
+  unchanged.
+- `vocab.english` and `vocab.hebrew` semantics are unchanged; `transliteration`
+  is an additive display aid (Brief 04).
+- Known-word derivation is **exam-only**; quiz and study never create
+  `known_words` rows (Brief 07).
+- Quiz mode's immediate per-question feedback is unchanged (Brief 06).
+- No password, email, profile, password-reset, retake, or explanations features
+  (constraint i).
+- Audio is limited to the English/Hebrew forms in study mode via the browser Web
+  Speech API; no speed/voice controls, no quiz/exam audio (Brief 05).
+- No unrequested analytics/reporting beyond per-user score history and
+  known-word progress.
