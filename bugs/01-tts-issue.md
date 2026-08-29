@@ -79,30 +79,50 @@ read only the recognizable punctuation, producing just "Exclamation Point".
   un-sanitized `item.hebrew`.
 - `backend/app/routers/catalog.py:41,66` → serves `hebrew` unchanged.
 
-## Proposed Fix
+## Finding / Resolution
 
-### Fix for Cause 1 (`frontend/js/views.js:191-197`)
+A human applied the Cause 2 data cleanup manually:
 
-- Remove the unconditional `cancel()`-before-`speak()` pattern that triggers the
-  Chromium speech-synthesis stall.
-- Recommended approach: guard `cancel()` so it only runs when speech is actually
-  in progress, and/or defer the new utterance to the previous utterance's
-  `onend`/`onerror`/`resume` callback; also attach an `onend` handler and call
-  `speechSynthesis.resume()` before speaking to clear a possible paused state.
-- Files to change: `frontend/js/views.js` (the `speak()` helper only). No
-  backend change needed; this is client-side.
+- Deleted `backend/english_tutor.db` (the local SQLite store, gitignored and
+  regenerated at startup) and re-seeded from `backend/app/seed.py`.
+- Confirmed the exclamation point is gone and TTS now works correctly.
+- Verified TTS across **5 consecutive vocab items** on Lesson 01, English and
+  Hebrew, all behaving as expected.
 
-### Fix for Cause 2 (data cleanup + optional hardening)
+This confirms that **Cause 2 (the stray `!` in the data) was the true root cause**
+of the reported failure. With clean data, the `cancel()`-before-`speak()`
+pattern in `frontend/js/views.js:191-197` does **not** independently break TTS —
+the "stall" observed was a downstream consequence of the bad utterance, not an
+independent code bug.
 
-- **Data cleanup (required):** correct the stored Hebrew for vocab id 1 in
-  `backend/english_tutor.db` back to `"שלום"` (drop the stray `!`), matching the
-  seed. E.g.
-  `sqlite3 backend/english_tutor.db "UPDATE vocab SET hebrew='שלום' WHERE id=1;"`
-- **Optional hardening:** sanitize the text passed to TTS in `speak()`
-  (`frontend/js/views.js:194`) by stripping punctuation before speaking, so stray
-  punctuation is never read aloud even if it reappears in data.
-- Files to change: `backend/english_tutor.db` (data), and optionally
-  `frontend/js/views.js`.
+## Proposed Fix (revised — fail-safe hardening)
 
-> Human gate: approve the Cause 1 fix approach (guarded/queued speech) and the
-> Cause 2 data cleanup before the fix stage runs.
+### Cause 2 (data) — RESOLVED
+
+No code change needed. The DB was cleaned and re-seeded by the human, and TTS is
+verified working. This portion of the bug is closed.
+
+### Cause 1 — reframed as fail-safe hardening (recoverability)
+
+Because one bad/unpronounceable TTS entry was able to silently disable all TTS
+for the rest of the session, we want TTS to be **recoverable** — a single failed
+utterance should not crash the TTS session. This is defense-in-depth, not a
+required bug fix (clean data works), but it prevents recurrence if bad data is
+ever re-introduced (e.g. via the admin add/update handlers in
+`frontend/js/app.js:331-340,352-358`).
+
+Implement in `frontend/js/views.js` `speak()` (the `speak()` helper only;
+client-side, no backend change):
+
+- **Guard `cancel()`** so it only runs when speech is actually in progress,
+  instead of unconditionally cancelling before every utterance.
+- **Attach `onend`/`onerror` handlers** on the utterance so a failed or
+  interrupted utterance is observed and the engine is not left stuck.
+- **Strip trailing punctuation** before speaking (defensive), so stray
+  punctuation is never read aloud if it reappears in data.
+- The exact technique (e.g. deferring the new utterance, calling `resume()`,
+  or queuing on `onend`) is at the implementer's discretion, so that a single
+  bad entry no longer disables TTS for the rest of the session.
+
+> Human gate: approve the revised fail-safe hardening before the fix stage runs.
+> The Cause 2 data cleanup is already done and does not need a code change.
