@@ -17,7 +17,13 @@ def list_lessons():
                 "SELECT COUNT(*) AS n FROM vocab WHERE lesson_id = ?", (row["id"],)
             ).fetchone()["n"]
             lessons.append(
-                LessonOut(id=row["id"], title=row["title"], vocab_count=count).model_dump()
+                LessonOut(
+                    id=row["id"],
+                    title=row["title"],
+                    vocab_count=count,
+                    level=row["level"],
+                    emoji=row["emoji"],
+                ).model_dump()
             )
         return {"data": lessons}
     finally:
@@ -43,7 +49,13 @@ def get_lesson(lesson_id: int):
             ).model_dump()
             for v in vocab_rows
         ]
-        detail = LessonDetail(id=row["id"], title=row["title"], vocab=vocab)
+        detail = LessonDetail(
+            id=row["id"],
+            title=row["title"],
+            level=row["level"],
+            emoji=row["emoji"],
+            vocab=vocab,
+        )
         return {"data": detail.model_dump()}
     finally:
         conn.close()

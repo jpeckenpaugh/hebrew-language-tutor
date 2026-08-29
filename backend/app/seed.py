@@ -1,6 +1,8 @@
 LESSONS = [
     {
         "title": "Greetings & Basics",
+        "level": 1,
+        "emoji": "👋",
         "vocab": [
             ("hello", "שלום", "shalom"),
             ("goodbye", "להתראות", "lehitraot"),
@@ -16,6 +18,8 @@ LESSONS = [
     },
     {
         "title": "Numbers & Time",
+        "level": 1,
+        "emoji": "🔢",
         "vocab": [
             ("one", "אחת", "achat"),
             ("two", "שתיים", "shtayim"),
@@ -31,6 +35,8 @@ LESSONS = [
     },
     {
         "title": "Family",
+        "level": 1,
+        "emoji": "👨👩👧",
         "vocab": [
             ("mother", "אמא", "ima"),
             ("father", "אבא", "aba"),
@@ -46,6 +52,8 @@ LESSONS = [
     },
     {
         "title": "Food & Drink",
+        "level": 1,
+        "emoji": "🍎",
         "vocab": [
             ("bread", "לחם", "lechem"),
             ("water", "מים", "mayim"),
@@ -61,6 +69,8 @@ LESSONS = [
     },
     {
         "title": "Common Verbs",
+        "level": 1,
+        "emoji": "⚡",
         "vocab": [
             ("eat", "לאכול", "lechol"),
             ("drink", "לשתות", "lishtot"),

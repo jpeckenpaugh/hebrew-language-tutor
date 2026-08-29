@@ -80,6 +80,8 @@ def init_db():
 def _migrate(conn):
     _add_vocab_transliteration(conn)
     _add_scores_user_id(conn)
+    _add_lesson_level(conn)
+    _add_lesson_emoji(conn)
 
 
 def _add_vocab_transliteration(conn):
@@ -126,14 +128,32 @@ def _add_scores_user_id(conn):
     )
 
 
+def _add_lesson_level(conn):
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(lessons)")]
+    if "level" in cols:
+        return
+    conn.execute("ALTER TABLE lessons ADD COLUMN level INTEGER NOT NULL DEFAULT 1")
+
+
+def _add_lesson_emoji(conn):
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(lessons)")]
+    if "emoji" in cols:
+        return
+    conn.execute("ALTER TABLE lessons ADD COLUMN emoji TEXT NOT NULL DEFAULT '📘'")
+    lookup = {lesson["title"]: lesson["emoji"] for lesson in seed.LESSONS}
+    for row in conn.execute("SELECT id, title FROM lessons").fetchall():
+        emoji = lookup.get(row["title"], "📘")
+        conn.execute("UPDATE lessons SET emoji = ? WHERE id = ?", (emoji, row["id"]))
+
+
 def seed_if_empty(conn):
     count = conn.execute("SELECT COUNT(*) AS n FROM lessons").fetchone()["n"]
     if count > 0:
         return
     for lesson in seed.LESSONS:
         cur = conn.execute(
-            "INSERT INTO lessons (title, created_at) VALUES (?, ?)",
-            (lesson["title"], _now_iso()),
+            "INSERT INTO lessons (title, level, emoji, created_at) VALUES (?, ?, ?, ?)",
+            (lesson["title"], lesson["level"], lesson["emoji"], _now_iso()),
         )
         lesson_id = cur.lastrowid
         for english, hebrew, translit in lesson["vocab"]:

@@ -47,27 +47,41 @@ def create_lesson(payload: LessonCreate, token: str = Depends(_require_token)):
     conn = db.get_connection()
     try:
         cur = conn.execute(
-            "INSERT INTO lessons (title, created_at) VALUES (?, ?)",
-            (payload.title, _now_iso()),
+            "INSERT INTO lessons (title, level, emoji, created_at) VALUES (?, ?, ?, ?)",
+            (payload.title, payload.level, payload.emoji, _now_iso()),
         )
         conn.commit()
-        return {"data": {"id": cur.lastrowid, "title": payload.title, "vocab": []}}
+        return {
+            "data": {
+                "id": cur.lastrowid,
+                "title": payload.title,
+                "level": payload.level,
+                "emoji": payload.emoji,
+                "vocab": [],
+            }
+        }
     finally:
         conn.close()
 
 
 @router.put("/lessons/{lesson_id}", response_model=dict)
 def update_lesson(lesson_id: int, payload: LessonUpdate, token: str = Depends(_require_token)):
+    if payload.title is None and payload.level is None and payload.emoji is None:
+        raise HTTPException(status_code=422, detail="At least one field required")
     conn = db.get_connection()
     try:
         row = conn.execute("SELECT * FROM lessons WHERE id = ?", (lesson_id,)).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="Lesson not found")
+        title = payload.title if payload.title is not None else row["title"]
+        level = payload.level if payload.level is not None else row["level"]
+        emoji = payload.emoji if payload.emoji is not None else row["emoji"]
         conn.execute(
-            "UPDATE lessons SET title = ? WHERE id = ?", (payload.title, lesson_id)
+            "UPDATE lessons SET title = ?, level = ?, emoji = ? WHERE id = ?",
+            (title, level, emoji, lesson_id),
         )
         conn.commit()
-        return {"data": {"id": lesson_id, "title": payload.title}}
+        return {"data": {"id": lesson_id, "title": title, "level": level, "emoji": emoji}}
     finally:
         conn.close()
 

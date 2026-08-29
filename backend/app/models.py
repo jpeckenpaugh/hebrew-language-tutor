@@ -14,11 +14,15 @@ class LessonOut(BaseModel):
     id: int
     title: str
     vocab_count: int
+    level: int
+    emoji: str
 
 
 class LessonDetail(BaseModel):
     id: int
     title: str
+    level: int
+    emoji: str
     vocab: List[VocabOut]
 
 
@@ -88,10 +92,14 @@ class LoginRequest(BaseModel):
 
 class LessonCreate(BaseModel):
     title: str
+    level: int = Field(1, ge=1, le=5)
+    emoji: str = Field("📘", min_length=1)
 
 
 class LessonUpdate(BaseModel):
-    title: str
+    title: Optional[str] = None
+    level: Optional[int] = Field(None, ge=1, le=5)
+    emoji: Optional[str] = Field(None, min_length=1)
 
 
 class VocabCreate(BaseModel):
