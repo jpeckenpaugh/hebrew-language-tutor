@@ -17,4 +17,5 @@ fi
 HOST="${HOST:-0.0.0.0}"
 
 echo "==> Starting application on ${HOST}:${PORT}"
+cd "$ROOT_DIR/backend"
 exec "$ROOT_DIR/.venv/bin/uvicorn" app.main:app --host "$HOST" --port "$PORT"
