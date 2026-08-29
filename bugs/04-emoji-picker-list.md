@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved.
+Fixed.
 
 ## Summary
 
@@ -64,3 +64,35 @@ expand the curated emoji set:
 Files to change: `frontend/js/views.js` (`CURATED_EMOJIS`, `emojiOptions()`,
 `adminPanel()` pickers), optionally `frontend/css/style.css`. Frontend-only; no
 backend change required.
+
+## Fix Implementation (Stage 2)
+
+Implemented the approved fix: replaced the native `<select>` emoji pickers with
+a searchable inline widget and greatly expanded the curated emoji set.
+
+**Changes made:**
+- `frontend/js/views.js` — replaced the 12-entry `CURATED_EMOJIS` array with
+  `EMOJI_CHOICES`, a curated list of **58** named emojis (`{ emoji, name }`) so
+  filtering by name is possible. Removed the old `emojiOptions()`.
+- Added an `emojiPicker(selected)` widget: a button showing the current emoji
+  that opens an inline panel with a name-search input and a clickable emoji grid
+  (no modal). The chosen emoji is stored in `container.dataset.emojiValue`.
+- Replaced both pickers in `adminPanel()`: the "Add New Lesson" `#newLessonEmoji`
+  `<select>` and the per-lesson edit-row `lesson-emoji-select` `<select>`. The
+  add/save handlers now read the single chosen emoji string from the widget
+  (`data-emoji-value`), matching the backend's single-emoji-per-lesson model.
+- `frontend/css/style.css` — added styling for the picker widget: the panel is an
+  absolutely-positioned dropdown (width 260px, shadow, rounded) that overlays the
+  row, plus an 8-column emoji grid with a max-height scroll.
+
+**Automated verification result:** PASS
+- `node --check frontend/js/views.js` — JS syntax valid.
+- `./run.sh` (uvicorn on port 8000) — app serves the updated `views.js`.
+- Headless-Chrome DOM check against the served `views.js`: the add-form and
+  per-row widgets render, the panel opens with >40 emoji options, a `banana`
+  search filter narrows the grid to a single `🍌`, clicking it updates the stored
+  value to `🍌` and closes the panel.
+
+**Human confirmation pending:** verify in a real browser that the Admin add/edit
+emoji picker shows a long list with a working name search. Stage 3 will mark this
+`Resolved` after your confirmation.

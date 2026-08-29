@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved.
+Fixed.
 
 > Human gate note (2026-08-29): Only **Issue 1** (autofocus the username field)
 > is approved for the fix. Issue 2 was not reproduced in the current code path
@@ -103,3 +103,30 @@ needs human browser confirmation before a fix is implemented.
 Files to change: `frontend/js/views.js` (autofocus, ~line 114),
 `frontend/js/app.js` (`showCreateModal` ~120-125, and possibly the create→title
 handoff for Issue 2).
+
+## Fix Implementation (Stage 2)
+
+Implemented the approved fix for **Issue 1 only** (autofocus the username
+field). Issue 2 remains out of scope per the human gate note and was left
+untouched.
+
+**Changes made:**
+- `frontend/js/views.js` `createAccountModal()` — added the `autofocus` attribute
+  to the username `<input id="createUsername">`.
+- `frontend/js/app.js` `showCreateModal()` — added a `shown.bs.modal` handler that
+  calls `.focus()` on `#createUsername` once the modal is visible, guaranteeing
+  focus even where Bootstrap's modal focus behavior would otherwise place the
+  cursor elsewhere.
+
+**Automated verification result:** PASS
+- `node --check frontend/js/app.js`, `node --check frontend/js/views.js` — syntax
+  valid.
+- `./run.sh` (uvicorn on port 8000) — app serves the updated assets.
+- Headless-Chrome runtime check: opened the Create Account modal; the username
+  input had the `autofocus` attribute **and** `document.activeElement` was the
+  `#createUsername` input once the modal was shown.
+
+**Human confirmation pending:** verify in a real browser that opening Create
+Account auto-focuses the cursor into the username field. Issue 2 (Title-screen
+dropdown refresh) is still flagged for human browser confirmation and was not
+changed. Stage 3 will mark this `Resolved` after your confirmation.

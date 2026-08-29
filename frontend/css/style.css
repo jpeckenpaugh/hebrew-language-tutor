@@ -122,11 +122,58 @@ main {
 }
 
 ::view-transition-old(root) {
-  animation: view-fade-out 0.18s ease both;
+  animation: view-fade-out 0.3s ease both;
 }
 
 ::view-transition-new(root) {
-  animation: view-fade-in 0.18s ease both;
+  animation: view-fade-in 0.3s ease both;
+}
+
+/* Searchable emoji picker widget (Bug 04). The panel is an inline dropdown
+   that overlays the row so the emoji grid never squeezes the layout. */
+.emoji-picker {
+  position: relative;
+  display: inline-block;
+}
+
+.emoji-picker-toggle {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.emoji-picker-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  width: 260px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.12);
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.25rem;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.emoji-option {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.35rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.35rem 0;
+  cursor: pointer;
+}
+
+.emoji-option:hover {
+  background-color: #f1f5f9;
 }
 
 .feedback-banner {

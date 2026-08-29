@@ -51,7 +51,14 @@
 
   // --- UI helpers -------------------------------------------------------
 
+  // Only the initial page load shows the #loading spinner; intra-app
+  // navigation is handled by the view-transition cross-fade (Bug 02), so the
+  // spinner is suppressed after the first render so it never pops on top of
+  // the transition.
+  let spinnerEnabled = true;
+
   function showLoading(on) {
+    if (on && !spinnerEnabled) return;
     loadingEl.classList.toggle('d-none', !on);
   }
 
@@ -70,6 +77,9 @@
     } else {
       apply();
     }
+    // After the first screen renders, stop showing the #loading spinner for
+    // subsequent intra-app navigation (Bug 02).
+    spinnerEnabled = false;
   }
 
   function showError(message) {
@@ -87,7 +97,7 @@
 
   function updateUserBadge() {
     const logoutBtn = document.getElementById('logoutBtn');
-    logoutBtn.classList.toggle('d-none', !currentUser);
+    logoutBtn.classList.toggle('d-none', !(currentUser || adminToken));
   }
 
   function goTitle() {
@@ -122,6 +132,12 @@
     document.body.appendChild(modalEl);
     new bootstrap.Modal(modalEl).show();
     modalEl.addEventListener('hidden.bs.modal', () => modalEl.remove());
+    // Bug 06 Issue 1: ensure the username field is focused once the modal is
+    // visible (Bootstrap does not focus inputs by default).
+    modalEl.addEventListener('shown.bs.modal', () => {
+      const input = document.getElementById('createUsername');
+      if (input) input.focus();
+    });
   }
 
   async function createAccount(rawUsername) {
@@ -311,6 +327,7 @@
       api('/api/admin/login', { method: 'POST', body: { username: 'admin', password: 'admin' } })
         .then((res) => {
           adminToken = res.data.token;
+          updateUserBadge();
           goAdmin();
         })
         .catch((e) => {

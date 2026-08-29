@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved.
+Fixed.
 
 ## Summary
 
@@ -64,3 +64,27 @@ and the item count as they are.
 
 Files to change: `frontend/js/views.js` (`catalog()`, ~lines 144-156); optionally
 `frontend/css/style.css` for any sizing/tuning.
+
+## Fix Implementation (Stage 2)
+
+Implemented the approved fix: restructured the Catalog card markup in
+`catalog()` so the emoji is rendered as a large block on its own line above the
+lesson title, mirroring the Study/Quiz/Exam card layout.
+
+**Changes made:**
+- `frontend/js/views.js` `catalog()` — replaced the single inline
+  `'<h5 class="card-title mb-0">' + emoji + ' ' + title + '</h5>'` with a
+  centered `display-6` emoji block (`'<div class="text-center display-6 mb-2">'`)
+  on its own line, followed by the `<h5 class="card-title">` lesson title. The
+  `Level` badge and the item count are unchanged.
+
+**Automated verification result:** PASS
+- `node --check frontend/js/views.js` — JS syntax valid.
+- `./run.sh` (uvicorn on port 8000) — app serves the updated `views.js`.
+- Headless-Chrome DOM check against the served `views.js`: for a sample lesson
+  the card contains a `display-6` emoji block (`👋`), the emoji is **not** inline
+  in the title, and the title/`Level` badge/`10 items` count are all preserved.
+
+**Human confirmation pending:** verify in a real browser that Catalog card emojis
+are now large and above the lesson name, matching the Study/Quiz/Exam cards.
+Stage 3 will mark this `Resolved` after your confirmation.

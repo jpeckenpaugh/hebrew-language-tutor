@@ -22,20 +22,127 @@ function esc(value) {
     .replace(/'/g, '&#39;');
 }
 
-/* Small bundled, curated emoji set for the Admin lesson emoji picker
- * (Sprint 03 feature j). The five seeded-lesson emojis are included, plus the
- * 📘 default placeholder and a few extras. */
-const CURATED_EMOJIS = ['👋', '🔢', '👨‍👩‍👧', '🍎', '⚡', '📘', '🎯', '✈️', '🌍', '🕐', '🏠', '🍞'];
+/* Curated, searchable emoji set for the Admin lesson emoji picker (Sprint 03
+ * feature j). Each entry pairs an emoji with a plain-English name so the picker
+ * can be filtered by name. The five seeded-lesson emojis are included. */
+const EMOJI_CHOICES = [
+  { emoji: '😀', name: 'grinning face' },
+  { emoji: '😄', name: 'smiling face with open mouth' },
+  { emoji: '😁', name: 'beaming face' },
+  { emoji: '😂', name: 'face with tears of joy' },
+  { emoji: '🤣', name: 'rolling on the floor laughing' },
+  { emoji: '😊', name: 'smiling face with smiling eyes' },
+  { emoji: '🥰', name: 'smiling face with hearts' },
+  { emoji: '😍', name: 'smiling face with heart-eyes' },
+  { emoji: '🤔', name: 'thinking face' },
+  { emoji: '😴', name: 'sleeping face' },
+  { emoji: '😎', name: 'smiling face with sunglasses' },
+  { emoji: '🥳', name: 'partying face' },
+  { emoji: '😭', name: 'loudly crying face' },
+  { emoji: '😡', name: 'angry face' },
+  { emoji: '👋', name: 'waving hand' },
+  { emoji: '👏', name: 'clapping hands' },
+  { emoji: '👍', name: 'thumbs up' },
+  { emoji: '👎', name: 'thumbs down' },
+  { emoji: '🙏', name: 'folded hands' },
+  { emoji: '💪', name: 'flexed biceps' },
+  { emoji: '👨‍👩‍👧', name: 'family' },
+  { emoji: '🐶', name: 'dog face' },
+  { emoji: '🐱', name: 'cat face' },
+  { emoji: '🦊', name: 'fox face' },
+  { emoji: '🐸', name: 'frog face' },
+  { emoji: '🐔', name: 'chicken' },
+  { emoji: '🐝', name: 'honeybee' },
+  { emoji: '🌹', name: 'rose' },
+  { emoji: '🌻', name: 'sunflower' },
+  { emoji: '🍎', name: 'red apple' },
+  { emoji: '🍌', name: 'banana' },
+  { emoji: '🍇', name: 'grapes' },
+  { emoji: '🍞', name: 'bread' },
+  { emoji: '🧀', name: 'cheese wedge' },
+  { emoji: '☕', name: 'hot beverage' },
+  { emoji: '🍰', name: 'shortcake' },
+  { emoji: '⚽', name: 'soccer ball' },
+  { emoji: '🏀', name: 'basketball' },
+  { emoji: '🎈', name: 'balloon' },
+  { emoji: '🎁', name: 'wrapped gift' },
+  { emoji: '🎯', name: 'direct hit' },
+  { emoji: '🎨', name: 'artist palette' },
+  { emoji: '🚗', name: 'car' },
+  { emoji: '✈️', name: 'airplane' },
+  { emoji: '⛵', name: 'sailboat' },
+  { emoji: '🏠', name: 'house' },
+  { emoji: '🏫', name: 'school' },
+  { emoji: '⏰', name: 'alarm clock' },
+  { emoji: '🕐', name: 'one oclock' },
+  { emoji: '📖', name: 'open book' },
+  { emoji: '📘', name: 'blue book' },
+  { emoji: '✏️', name: 'pencil' },
+  { emoji: '🔢', name: 'input numbers' },
+  { emoji: '🔬', name: 'microscope' },
+  { emoji: '🌍', name: 'globe showing europe-africa' },
+  { emoji: '⚡', name: 'high voltage' },
+  { emoji: '❤️', name: 'red heart' },
+  { emoji: '⭐', name: 'star' },
+  { emoji: '🌈', name: 'rainbow' },
+];
+
+/* Searchable emoji picker widget (Bug 04): a button that opens an inline panel
+ * with a name-search input and a clickable emoji grid. The chosen emoji is
+ * stored in `container.dataset.emojiValue` so callers can read it after the
+ * widget is rendered. */
+function emojiPicker(selected) {
+  const wrap = el(
+    '<div class="emoji-picker" data-emoji-value="' + esc(selected || '') + '">' +
+      '<button type="button" class="btn btn-outline-secondary emoji-picker-toggle" title="Choose emoji">' +
+        esc(selected || '😀') +
+      '</button>' +
+      '<div class="emoji-picker-panel d-none">' +
+        '<input type="text" class="form-control form-control-sm emoji-search mb-2" placeholder="Search emoji by name…">' +
+        '<div class="emoji-grid"></div>' +
+      '</div>' +
+    '</div>'
+  );
+  const toggle = wrap.querySelector('.emoji-picker-toggle');
+  const panel = wrap.querySelector('.emoji-picker-panel');
+  const search = wrap.querySelector('.emoji-search');
+  const grid = wrap.querySelector('.emoji-grid');
+
+  function renderGrid(filter) {
+    grid.innerHTML = '';
+    EMOJI_CHOICES
+      .filter((c) => !filter || c.name.indexOf(filter) !== -1)
+      .forEach((c) => {
+        const opt = el(
+          '<button type="button" class="emoji-option" data-emoji="' + esc(c.emoji) + '" title="' + esc(c.name) + '">' + esc(c.emoji) + '</button>'
+        );
+        opt.addEventListener('click', () => {
+          wrap.dataset.emojiValue = c.emoji;
+          toggle.textContent = c.emoji;
+          panel.classList.add('d-none');
+        });
+        grid.appendChild(opt);
+      });
+  }
+
+  toggle.addEventListener('click', () => {
+    const opening = panel.classList.contains('d-none');
+    panel.classList.toggle('d-none');
+    if (opening) {
+      search.value = '';
+      renderGrid('');
+      search.focus();
+    }
+  });
+  search.addEventListener('input', () => renderGrid(search.value.trim().toLowerCase()));
+
+  renderGrid('');
+  return wrap;
+}
 
 function levelOptions(selected) {
   return [1, 2, 3, 4, 5]
     .map((n) => '<option value="' + n + '"' + (n === selected ? ' selected' : '') + '>Level ' + n + '</option>')
-    .join('');
-}
-
-function emojiOptions(selected) {
-  return CURATED_EMOJIS
-    .map((e) => '<option value="' + esc(e) + '"' + (e === selected ? ' selected' : '') + '>' + esc(e) + '</option>')
     .join('');
 }
 
@@ -111,7 +218,7 @@ const Views = {
             '<form id="createAccountForm">' +
               '<div class="modal-body">' +
                 '<label class="form-label" for="createUsername">Username</label>' +
-                '<input class="form-control" id="createUsername" autocomplete="username" placeholder="Enter a username">' +
+                '<input class="form-control" id="createUsername" autocomplete="username" placeholder="Enter a username" autofocus>' +
                 '<div id="createError" class="alert alert-danger d-none mt-3 mb-0"></div>' +
               '</div>' +
               '<div class="modal-footer">' +
@@ -144,8 +251,9 @@ const Views = {
     lessons.forEach((lesson) => {
       const card = el(
         '<div class="card card-hover p-3">' +
-          '<div class="d-flex justify-content-between align-items-start mb-1">' +
-            '<h5 class="card-title mb-0">' + esc(lesson.emoji || '') + ' ' + esc(lesson.title) + '</h5>' +
+          '<div class="text-center display-6 mb-2">' + esc(lesson.emoji || '') + '</div>' +
+          '<div class="d-flex justify-content-between align-items-start">' +
+            '<h5 class="card-title mb-0">' + esc(lesson.title) + '</h5>' +
             '<span class="badge text-bg-secondary">Level ' + esc(lesson.level) + '</span>' +
           '</div>' +
           '<p class="text-muted mb-0">' + esc(lesson.vocab_count) + ' items</p>' +
@@ -650,11 +758,9 @@ const Views = {
       el(
         '<div class="d-flex justify-content-between align-items-center mb-3">' +
           '<h2 class="mb-0">Admin</h2>' +
-          '<button class="btn btn-outline-danger" id="adminLogout">Log out</button>' +
         '</div>'
       )
     );
-    wrap.querySelector('#adminLogout').addEventListener('click', () => callbacks.onLogout());
 
     // Add new lesson form.
     const addLesson = el(
@@ -663,17 +769,19 @@ const Views = {
         '<div class="row g-2 align-items-center">' +
           '<div class="col-12 col-md-5"><input class="form-control" id="newLessonTitle" placeholder="Lesson title"></div>' +
           '<div class="col-6 col-md-3"><select class="form-select" id="newLessonLevel">' + levelOptions(1) + '</select></div>' +
-          '<div class="col-6 col-md-3"><select class="form-select" id="newLessonEmoji">' + emojiOptions('📘') + '</select></div>' +
+          '<div class="col-6 col-md-3"><select class="form-select" id="newLessonLevel">' + levelOptions(1) + '</select></div>' +
+          '<div class="col-6 col-md-3"><div id="newLessonEmoji"></div></div>' +
           '<div class="col-12 col-md-1"><button class="btn btn-primary" id="addLessonBtn">Add</button></div>' +
         '</div>' +
         '<div id="addLessonError" class="alert alert-danger d-none mt-2 mb-0"></div>' +
       '</div>'
     );
+    addLesson.querySelector('#newLessonEmoji').appendChild(emojiPicker('📘'));
     addLesson.querySelector('#addLessonBtn').addEventListener('click', () => {
       const title = addLesson.querySelector('#newLessonTitle').value.trim();
       if (!title) return;
       const level = parseInt(addLesson.querySelector('#newLessonLevel').value, 10);
-      const emoji = addLesson.querySelector('#newLessonEmoji').value;
+      const emoji = addLesson.querySelector('#newLessonEmoji .emoji-picker').dataset.emojiValue;
       callbacks.onAddLesson(title, level, emoji);
     });
     wrap.appendChild(addLesson);
@@ -684,7 +792,7 @@ const Views = {
           '<div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">' +
             '<input class="form-control lesson-title-input" style="max-width:280px" value="' + esc(lesson.title) + '">' +
             '<select class="form-select lesson-level-select" style="max-width:120px">' + levelOptions(lesson.level) + '</select>' +
-            '<select class="form-select lesson-emoji-select" style="max-width:90px">' + emojiOptions(lesson.emoji) + '</select>' +
+            '<div class="lesson-emoji-widget"></div>' +
             '<button class="btn btn-outline-primary save-title-btn">Save</button>' +
             '<button class="btn btn-link toggle-vocab">' + esc(lesson.vocab_count) + ' items ▾</button>' +
           '</div>' +
@@ -702,7 +810,8 @@ const Views = {
       );
       const titleInput = card.querySelector('.lesson-title-input');
       const levelSelect = card.querySelector('.lesson-level-select');
-      const emojiSelect = card.querySelector('.lesson-emoji-select');
+      const emojiWidget = emojiPicker(lesson.emoji);
+      card.querySelector('.lesson-emoji-widget').appendChild(emojiWidget);
       const saveBtn = card.querySelector('.save-title-btn');
       const toggleBtn = card.querySelector('.toggle-vocab');
       const vocabList = card.querySelector('.vocab-list');
@@ -711,7 +820,7 @@ const Views = {
       saveBtn.addEventListener('click', () => {
         const title = titleInput.value.trim();
         const level = parseInt(levelSelect.value, 10);
-        const emoji = emojiSelect.value;
+        const emoji = emojiWidget.dataset.emojiValue;
         if (title) callbacks.onUpdateLesson(lesson.id, title, level, emoji);
       });
 

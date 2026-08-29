@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved.
+Fixed.
 
 ## Summary
 
@@ -81,3 +81,33 @@ only visible change, and make the fade perceptible:
   ~0.3–0.4s) so the cross-fade is clearly perceptible.
 
 Files to change: `frontend/js/app.js`, `frontend/css/style.css`.
+
+## Fix Implementation (Stage 2)
+
+Implemented the approved fix: suppress the `#loading` spinner for intra-app
+`render()` transitions (keeping it for the initial page load) and lengthen the
+cross-fade so it is clearly perceptible.
+
+**Changes made:**
+- `frontend/js/app.js` — added a `spinnerEnabled` flag (default `true`). The
+  initial page load still shows the `#loading` spinner; `render()` sets
+  `spinnerEnabled = false` after the first screen renders, and `showLoading(true)`
+  is a no-op once disabled. Every intra-app navigation
+  (`goTitle`/`goCatalog`/`openLesson`/`openMode`/`goScores`/`renderAdminPanel`)
+  therefore no longer flashes the spinner on top of the transition, so the
+  cross-fade is the only visible change.
+- `frontend/css/style.css` — lengthened the view-transition fades
+  (`::view-transition-old(root)` / `::view-transition-new(root)`) from `0.18s`
+  to `0.3s` so the cross-fade is perceptible.
+
+**Automated verification result:** PASS
+- `node --check frontend/js/app.js` — JS syntax valid.
+- `./run.sh` (uvicorn on port 8000) — app starts and serves the updated
+  `frontend/js/app.js` and `frontend/css/style.css`.
+- Headless-Chrome runtime check: signed in as a learner and opened a lesson;
+  sampled `#loading` continuously during navigation — the spinner was **never**
+  shown after the initial load. Confirmed the served CSS animates at `0.3s`.
+
+**Human confirmation pending:** verify in a real browser that screen changes now
+cross-fade smoothly (no spinner "pop" or glitch). Stage 3 will mark this
+`Resolved` after your confirmation.

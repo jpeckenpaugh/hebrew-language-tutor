@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved.
+Fixed.
 
 ## Summary
 
@@ -72,3 +72,33 @@ positioned on the far right as on the regular logged-in pages:
 
 Files to change: `frontend/js/app.js` (`updateUserBadge`), `frontend/js/views.js`
 (`adminPanel`).
+
+## Fix Implementation (Stage 2)
+
+Implemented the approved fix: the top-nav "Log out" (`#logoutBtn`) is now the
+single logout for Admin too, positioned on the far right as on the regular
+logged-in pages.
+
+**Changes made:**
+- `frontend/js/app.js` `updateUserBadge()` — toggles `#logoutBtn` on
+  `currentUser || adminToken` (was `!currentUser` only), so it shows for admin
+  sessions too. `logout()` already clears both `userToken` and `adminToken`, so
+  no change was needed there.
+- `frontend/js/app.js` `goAdmin()` — added an `updateUserBadge()` call right after
+  `adminToken` is set, so the top-nav logout appears when entering the Admin
+  section (companion change; `updateUserBadge()` was previously never invoked on
+  the admin entry path).
+- `frontend/js/views.js` `adminPanel()` — removed the embedded `#adminLogout`
+  button and its `onLogout` wiring, leaving a single consistent top-nav logout.
+
+**Automated verification result:** PASS
+- `node --check frontend/js/app.js`, `node --check frontend/js/views.js` — syntax
+  valid.
+- `./run.sh` (uvicorn on port 8000) — app serves the updated assets.
+- Headless-Chrome runtime check: clicked into the Admin section; the top-nav
+  `#logoutBtn` was visible (not `d-none`) and no `#adminLogout` existed in the
+  live DOM.
+
+**Human confirmation pending:** verify in a real browser that Admin sections now
+show "Log out" in the top nav on the far right (and no longer below the nav).
+Stage 3 will mark this `Resolved` after your confirmation.
