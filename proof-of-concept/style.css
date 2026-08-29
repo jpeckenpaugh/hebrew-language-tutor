@@ -1,0 +1,41 @@
+body {
+  background-color: #f8f9fa;
+}
+
+.lesson-card {
+  cursor: pointer;
+}
+
+.lesson-card:hover {
+  border-color: #0d6efd;
+  transform: translateY(-2px);
+  transition: transform 0.2s ease;
+}
+
+.study-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.option-btn {
+  width: 100%;
+  text-align: left;
+}
+
+.option-btn.correct {
+  background-color: #198754;
+  border-color: #198754;
+  color: #fff;
+}
+
+.option-btn.incorrect {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: #fff;
+}
+
+.option-btn.disabled-opt {
+  pointer-events: none;
+  opacity: 0.6;
+}

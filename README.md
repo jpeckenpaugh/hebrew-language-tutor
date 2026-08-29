@@ -10,6 +10,15 @@ baseline UI framework), and the backend is a FastAPI service backed by SQLite.
 All application state — lessons, vocabulary, and saved scores — is sourced from
 the backend API.
 
+## Two experiments in this repository
+
+This README documents the **primary** experiment: the full client/server app
+built via a 9-stage decomposed role pipeline. A second, simpler experiment — a
+single-pass "proof of concept" static SPA with hardcoded vocabulary — lives in
+[`proof-of-concept/`](proof-of-concept/). For a detailed prose comparison of the
+two approaches (architecture, feature coverage, robustness, effort, and
+pros/cons), see [`COMPARISON.md`](COMPARISON.md).
+
 ## Features
 
 - **Lesson catalog** — five seeded lessons, each with 10 English/Hebrew

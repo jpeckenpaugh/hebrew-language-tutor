@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>English / Hebrew Language Tutor</title>
+  <link rel="stylesheet" href="vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container py-4">
+    <header class="text-center mb-4">
+      <h1 class="display-5">English / Hebrew Language Tutor</h1>
+      <p class="lead">Learn Hebrew vocabulary through study, quiz, and exam modes.</p>
+    </header>
+
+    <div id="homeView" class="view">
+      <h2 class="mb-3">Choose a Lesson</h2>
+      <div id="lessonList" class="row g-3"></div>
+    </div>
+
+    <div id="lessonView" class="view d-none">
+      <button id="backBtn" class="btn btn-outline-secondary mb-3">&larr; Back to Lessons</button>
+      <h2 id="lessonTitle" class="mb-3"></h2>
+      <div class="btn-group mb-4" role="group">
+        <button class="btn btn-primary" data-mode="study">Study</button>
+        <button class="btn btn-secondary" data-mode="quiz">Quiz</button>
+        <button class="btn btn-dark" data-mode="exam">Exam</button>
+      </div>
+      <div id="content"></div>
+    </div>
+  </div>
+
+  <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="scripts.js"></script>
+</body>
+</html>
