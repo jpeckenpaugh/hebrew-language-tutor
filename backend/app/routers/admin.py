@@ -84,8 +84,8 @@ def create_vocab(lesson_id: int, payload: VocabCreate, token: str = Depends(_req
         if lesson is None:
             raise HTTPException(status_code=404, detail="Lesson not found")
         cur = conn.execute(
-            "INSERT INTO vocab (lesson_id, english, hebrew) VALUES (?, ?, ?)",
-            (lesson_id, payload.english, payload.hebrew),
+            "INSERT INTO vocab (lesson_id, english, hebrew, transliteration) VALUES (?, ?, ?, ?)",
+            (lesson_id, payload.english, payload.hebrew, payload.transliteration),
         )
         conn.commit()
         return {
@@ -94,6 +94,7 @@ def create_vocab(lesson_id: int, payload: VocabCreate, token: str = Depends(_req
                 "lesson_id": lesson_id,
                 "english": payload.english,
                 "hebrew": payload.hebrew,
+                "transliteration": payload.transliteration,
             }
         }
     finally:
@@ -102,7 +103,7 @@ def create_vocab(lesson_id: int, payload: VocabCreate, token: str = Depends(_req
 
 @router.put("/vocab/{vocab_id}", response_model=dict)
 def update_vocab(vocab_id: int, payload: VocabUpdate, token: str = Depends(_require_token)):
-    if payload.english is None and payload.hebrew is None:
+    if payload.english is None and payload.hebrew is None and payload.transliteration is None:
         raise HTTPException(status_code=422, detail="At least one field required")
     conn = db.get_connection()
     try:
@@ -111,14 +112,22 @@ def update_vocab(vocab_id: int, payload: VocabUpdate, token: str = Depends(_requ
             raise HTTPException(status_code=404, detail="Vocab not found")
         english = payload.english if payload.english is not None else row["english"]
         hebrew = payload.hebrew if payload.hebrew is not None else row["hebrew"]
+        transliteration = (
+            payload.transliteration
+            if payload.transliteration is not None
+            else row["transliteration"]
+        )
         conn.execute(
-            "UPDATE vocab SET english = ?, hebrew = ? WHERE id = ?",
-            (english, hebrew, vocab_id),
+            "UPDATE vocab SET english = ?, hebrew = ?, transliteration = ? WHERE id = ?",
+            (english, hebrew, transliteration, vocab_id),
         )
         conn.commit()
         return {
             "data": VocabOut(
-                id=vocab_id, english=english, hebrew=hebrew
+                id=vocab_id,
+                english=english,
+                hebrew=hebrew,
+                transliteration=transliteration,
             ).model_dump()
             | {"lesson_id": row["lesson_id"]}
         }

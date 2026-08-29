@@ -35,7 +35,12 @@ def get_lesson(lesson_id: int):
             "SELECT * FROM vocab WHERE lesson_id = ? ORDER BY id", (lesson_id,)
         ).fetchall()
         vocab = [
-            VocabOut(id=v["id"], english=v["english"], hebrew=v["hebrew"]).model_dump()
+            VocabOut(
+                id=v["id"],
+                english=v["english"],
+                hebrew=v["hebrew"],
+                transliteration=v["transliteration"],
+            ).model_dump()
             for v in vocab_rows
         ]
         detail = LessonDetail(id=row["id"], title=row["title"], vocab=vocab)
@@ -55,7 +60,12 @@ def get_lesson_vocab(lesson_id: int):
             "SELECT * FROM vocab WHERE lesson_id = ? ORDER BY id", (lesson_id,)
         ).fetchall()
         vocab = [
-            VocabOut(id=v["id"], english=v["english"], hebrew=v["hebrew"]).model_dump()
+            VocabOut(
+                id=v["id"],
+                english=v["english"],
+                hebrew=v["hebrew"],
+                transliteration=v["transliteration"],
+            ).model_dump()
             for v in vocab_rows
         ]
         return {"data": vocab}
