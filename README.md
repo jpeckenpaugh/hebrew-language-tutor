@@ -84,6 +84,10 @@ seeded automatically. Open the printed URL (e.g. `http://127.0.0.1:8000`) in a
 browser. The app opens to a **Title screen** where you enter a username to
 sign in or create an account, or choose the Admin entry.
 
+To reset to a clean, freshly seeded state (e.g. after demo data or testing),
+stop the server, delete `backend/english_tutor.db`, and start `./run.sh` again
+— the database is recreated and seeded on startup.
+
 ## Project structure
 
 ```
@@ -107,14 +111,21 @@ sign in or create an account, or choose the Admin entry.
 │   ├── js/views.js             # pure rendering of all views
 │   └── static/vendor/bootstrap/# locally hosted Bootstrap
 ├── concept.md                  # original product brief (starting point)
+├── COMPARISON.md               # prose comparison of the two experiments
 ├── instructions/
 │   ├── build/                  # v0.1 role instructions
 │   │   └── summaries/          # v0.1 per-stage role summaries
-│   └── enhancements/           # sprint 01 enhancement pipeline
-│       └── summaries/          # sprint 01 per-stage role summaries
+│   ├── enhancements/           # sprint 01 enhancement pipeline
+│   │   └── summaries/          # sprint 01 per-stage role summaries
+│   ├── debug/                  # debug pipeline (investigate / fix / verify)
+│   │   └── summaries/          # debug per-stage role summaries
+│   └── meta/                   # Stage Manager meta role + session reports
+│       └── summaries/          # durable session-report log
 ├── features/
 │   └── completed/              # v0.1 feature capabilities and briefs
 ├── enhancements/               # sprint concept (sprint01.md) + scope
+├── bugs/                       # bug reports (resolved/ holds closed bugs)
+├── tmp/                        # gitignored scratch/log folder (not committed)
 ├── docs/
 │   ├── architecture.md         # technical specification (Parts A and B)
 │   └── verification-report.md  # Stage 8 verification results (Parts A and B)
@@ -166,21 +177,19 @@ These are documented as-is and are not hidden:
    no real password verification (intentional simplification per `concept.md`
    §g). State-changing admin endpoints do check that the client holds a
    "signed-in" token.
-4. **One non-seed vocab item has an empty transliteration.** The 50 seeded items
-   all carry a transliteration; a single admin-created item from earlier v0.1
-   testing (`airport`, lesson 6) has `transliteration: ""`. The frontend renders
-   an empty transliteration gracefully (blank in study, blank input in admin), and
-   admin can populate it.
-5. **Admin-created lessons may start with fewer than 10 vocab items.** The
+4. **Admin-created lessons may start with fewer than 10 vocab items.** The
    "exactly 10 per lesson" guarantee applies to the seeded content; a newly
    created lesson has no vocabulary until items are added one at a time.
-6. **Text-to-speech depends on browser support.** Pronunciation audio uses the
+5. **Text-to-speech depends on browser support.** Pronunciation audio uses the
    browser's Web Speech API (`SpeechSynthesis`), which is client-side and
-   voice/availability varies by browser and platform.
-7. **Frontend prompt direction.** Quiz/exam questions prompt in English with
+   voice/availability varies by browser and platform. A prior TTS failure mode
+   (a stray punctuation character being read aloud and stalling subsequent
+   speech) was fixed: the DB was re-seeded clean and the frontend `speak()`
+   logic was hardened against one-shot failures.
+6. **Frontend prompt direction.** Quiz/exam questions prompt in English with
    Hebrew choices (English → Hebrew). The briefs permit either direction; this
    was recorded as a confirmed acceptable assumption.
-8. **Frontend verified by static review.** Browser interaction was not automated
+7. **Frontend verified by static review.** Browser interaction was not automated
    in this environment; frontend behavior was reviewed statically plus
    API-level verification of the endpoints the frontend consumes (see
    `docs/verification-report.md`).
@@ -193,7 +202,5 @@ These are documented as-is and are not hidden:
   authentication or session persistence is ever required.
 - Decide whether admin-created lessons should enforce a minimum/typical vocab
   count, and add any UI/API affordances accordingly.
-- Backfill the one non-seed vocab item's transliteration and consider making the
-  transliteration field mandatory on admin create/edit.
 - Consider serving pre-built questions from the backend if client-side
   distractor construction becomes a concern.
