@@ -17,8 +17,10 @@ behavior or implement application features.
 - `requirements.txt` — the dependency manifest.
 - `install.sh` — environment setup script.
 - `run.sh` — run/start script.
+- `.gitignore` — files/directories to exclude from version control (e.g.,
+  virtual environments, caches, local databases, `.DS_Store`).
 - `environment-notes.md` — environment notes (runtime assumptions, caveats).
-  All four live at the repository root.
+  All five live at the repository root.
 
 ## Instructions
 
@@ -32,9 +34,12 @@ behavior or implement application features.
    installs the dependencies.
 6. Create `run.sh` that starts the application using the provisioned
    environment.
-7. Write concise `environment-notes.md` documenting prerequisites, assumptions,
+7. Create `.gitignore` listing files/directories that should not be committed
+   to version control (e.g., virtual environments, caches, local databases,
+   OS artifacts like `.DS_Store`).
+8. Write concise `environment-notes.md` documenting prerequisites, assumptions,
    and any caveats.
-8. Write your summary file (see below).
+9. Write your summary file (see below).
 
 ## What NOT to do
 

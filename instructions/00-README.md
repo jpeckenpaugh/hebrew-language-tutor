@@ -22,6 +22,7 @@ the roles read and write are described below.
 ├── requirements.txt                Stage 4
 ├── install.sh                      Stage 4
 ├── run.sh                          Stage 4
+├── .gitignore                      Stage 4
 ├── environment-notes.md            Stage 4
 ├── backend/                        Stage 6 (all backend code)
 ├── frontend/                       Stage 7 (all frontend code)
@@ -45,7 +46,7 @@ The `docs/` folder is created by Stage 5.
 | 1     | Concept / Seed          | `01-write-concept.md`               | `concept.md`                                    |
 | 2     | Feature Decomposition   | `02-decompose-features.md`          | `features/01-<name>.md`, `features/02-<name>.md`, … |
 | 3     | Feature Brief Writer    | `03-write-feature-briefs.md`        | `features/briefs/01-<name>.md`, …               |
-| 4     | System Engineer         | `04-system-engineering.md`          | `requirements.txt`, `install.sh`, `run.sh`, `environment-notes.md` |
+| 4     | System Engineer         | `04-system-engineering.md`          | `requirements.txt`, `install.sh`, `run.sh`, `.gitignore`, `environment-notes.md` |
 | 5     | Architect               | `05-architecture.md`                | `docs/architecture.md`                          |
 | 6     | Backend Engineer        | `06-backend.md`                     | code under `backend/`                           |
 | 7     | Frontend Engineer       | `07-frontend.md`                    | code under `frontend/`                          |
