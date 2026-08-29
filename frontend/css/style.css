@@ -68,19 +68,23 @@ main {
   background-color: #f1f5f9;
 }
 
-/* Larger term text on Quiz/Exam prompts and options (Sprint 02 feature d). */
+/* Larger term text on Quiz/Exam prompts and options (Sprint 02 feature d),
+   enlarged and centered for readability (Sprint 03 feature f). */
 #quizPrompt,
 #examPrompt {
-  font-size: 1.75rem;
-  font-weight: 600;
+  font-size: 3.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  margin-bottom: 2rem;
 }
 
 .option-btn {
   display: block;
   width: 100%;
-  text-align: left;
-  margin-bottom: 0.5rem;
-  font-size: 1.4rem;
+  text-align: center;
+  margin-bottom: 0.75rem;
+  font-size: 2.2rem;
 }
 
 .option-btn.correct {
@@ -93,9 +97,36 @@ main {
   background-color: #f8d7da;
 }
 
+/* Neutral Exam selection indicator (Sprint 03 feature e): highlights the
+   chosen option without revealing correctness. */
+.option-btn.selected {
+  border-color: #6c757d;
+  background-color: #e9ecef;
+}
+
 .option-btn:disabled {
   opacity: 1;
   cursor: default;
+}
+
+/* Cross-fade between screens via the View Transitions API (Sprint 03 feature c).
+   Browsers without support fall back to the instant swap with no effect. */
+@keyframes view-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes view-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+::view-transition-old(root) {
+  animation: view-fade-out 0.18s ease both;
+}
+
+::view-transition-new(root) {
+  animation: view-fade-in 0.18s ease both;
 }
 
 .feedback-banner {

@@ -55,18 +55,25 @@
     loadingEl.classList.toggle('d-none', !on);
   }
 
+  // Renders a screen. Where the browser supports the View Transitions API this
+  // cross-fades between screens; otherwise it falls back to an instant swap.
+  // Any in-flight Study Auto-Play speech is cancelled so leaving a lesson stops
+  // playback (Sprint 03 feature c / d).
   function render(node) {
-    contentEl.innerHTML = '';
-    contentEl.appendChild(node);
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    const apply = () => {
+      contentEl.innerHTML = '';
+      contentEl.appendChild(node);
+    };
+    if (document.startViewTransition) {
+      document.startViewTransition(apply);
+    } else {
+      apply();
+    }
   }
 
   function showError(message) {
-    const node = Views.error(message);
-    node.querySelector('[data-nav="catalog"]').addEventListener('click', (e) => {
-      e.preventDefault();
-      goCatalog();
-    });
-    render(node);
+    render(Views.error(message));
   }
 
   // --- Session / Title screen ------------------------------------------
@@ -298,21 +305,18 @@
     setNavVisibility();
     document.body.classList.remove('on-title');
     if (!adminToken) {
-      render(Views.adminLogin(async (username, password, form) => {
-        const errorEl = form.parentElement.querySelector('#loginError');
-        errorEl.classList.add('d-none');
-        try {
-          const res = await api('/api/admin/login', {
-            method: 'POST',
-            body: { username, password },
-          });
+      // Automatic admin sign-in (Sprint 03 feature h): supply a fixed
+      // credential to the retained dummy gate so no sign-in form is needed.
+      showLoading(true);
+      api('/api/admin/login', { method: 'POST', body: { username: 'admin', password: 'admin' } })
+        .then((res) => {
           adminToken = res.data.token;
           goAdmin();
-        } catch (e) {
-          errorEl.textContent = e.message;
-          errorEl.classList.remove('d-none');
-        }
-      }));
+        })
+        .catch((e) => {
+          showLoading(false);
+          showError('Could not sign in as Admin: ' + e.message);
+        });
       return;
     }
     renderAdminPanel();
@@ -344,9 +348,9 @@
         goTitle();
       },
 
-      onAddLesson: async (title) => {
+      onAddLesson: async (title, level, emoji) => {
         try {
-          await api('/api/admin/lessons', { method: 'POST', body: { title } });
+          await api('/api/admin/lessons', { method: 'POST', body: { title, level, emoji } });
           renderAdminPanel();
         } catch (e) {
           if (e.status === 401) { adminToken = null; goAdmin(); }
@@ -354,9 +358,9 @@
         }
       },
 
-      onUpdateLesson: async (lessonId, title) => {
+      onUpdateLesson: async (lessonId, title, level, emoji) => {
         try {
-          await api('/api/admin/lessons/' + lessonId, { method: 'PUT', body: { title } });
+          await api('/api/admin/lessons/' + lessonId, { method: 'PUT', body: { title, level, emoji } });
           renderAdminPanel();
         } catch (e) {
           if (e.status === 401) { adminToken = null; goAdmin(); }
@@ -424,20 +428,23 @@
     });
   }
 
-  function wireNav() {
-    document.querySelectorAll('[data-nav]').forEach((link) => {
-      link.addEventListener('click', (e) => {
-        e.preventDefault();
-        const dest = link.dataset.nav;
-        if (dest === 'catalog') goCatalog();
-        else if (dest === 'scores') goScores();
-        else if (dest === 'admin') goAdmin();
-      });
+  // Navigation via event delegation: dynamically-rendered links carrying
+  // data-nav work after the page renders, since the listener lives on the
+  // document rather than being bound once to static nodes (Sprint 03 feature a).
+  function setupNav() {
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest('[data-nav]');
+      if (!link) return;
+      e.preventDefault();
+      const dest = link.dataset.nav;
+      if (dest === 'catalog') goCatalog();
+      else if (dest === 'scores') goScores();
+      else if (dest === 'admin') goAdmin();
     });
   }
 
   function init() {
-    wireNav();
+    setupNav();
     document.getElementById('logoutBtn').addEventListener('click', () => logout());
     goTitle();
   }

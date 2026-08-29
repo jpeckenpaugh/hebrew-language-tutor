@@ -22,6 +22,23 @@ function esc(value) {
     .replace(/'/g, '&#39;');
 }
 
+/* Small bundled, curated emoji set for the Admin lesson emoji picker
+ * (Sprint 03 feature j). The five seeded-lesson emojis are included, plus the
+ * 📘 default placeholder and a few extras. */
+const CURATED_EMOJIS = ['👋', '🔢', '👨‍👩‍👧', '🍎', '⚡', '📘', '🎯', '✈️', '🌍', '🕐', '🏠', '🍞'];
+
+function levelOptions(selected) {
+  return [1, 2, 3, 4, 5]
+    .map((n) => '<option value="' + n + '"' + (n === selected ? ' selected' : '') + '>Level ' + n + '</option>')
+    .join('');
+}
+
+function emojiOptions(selected) {
+  return CURATED_EMOJIS
+    .map((e) => '<option value="' + esc(e) + '"' + (e === selected ? ' selected' : '') + '>' + esc(e) + '</option>')
+    .join('');
+}
+
 const Views = {
   /* Title screen: sign-in picker / create account / admin entry.
    * `users` is the list from GET /api/users. `onSignIn(username)` is called
@@ -49,7 +66,7 @@ const Views = {
               '</div>' +
             '</form>' +
             '<hr class="my-4">' +
-            '<button class="btn btn-outline-secondary w-100" id="titleAdmin">Admin Area</button>' +
+            '<button class="btn btn-outline-secondary w-100" id="titleAdmin">Admin</button>' +
           '</div>' +
         '</div>' +
       '</div>'
@@ -127,7 +144,10 @@ const Views = {
     lessons.forEach((lesson) => {
       const card = el(
         '<div class="card card-hover p-3">' +
-          '<h5 class="card-title mb-1">' + esc(lesson.title) + '</h5>' +
+          '<div class="d-flex justify-content-between align-items-start mb-1">' +
+            '<h5 class="card-title mb-0">' + esc(lesson.emoji || '') + ' ' + esc(lesson.title) + '</h5>' +
+            '<span class="badge text-bg-secondary">Level ' + esc(lesson.level) + '</span>' +
+          '</div>' +
           '<p class="text-muted mb-0">' + esc(lesson.vocab_count) + ' items</p>' +
         '</div>'
       );
@@ -155,7 +175,7 @@ const Views = {
         '</nav>'
       )
     );
-    wrap.appendChild(el('<h2 class="mb-2">' + esc(lesson.title) + '</h2>'));
+    wrap.appendChild(el('<h2 class="mb-2">' + esc(lesson.title) + ' <span class="badge text-bg-secondary">Level ' + esc(lesson.level) + '</span></h2>'));
 
     if (progress) {
       const known = Math.min(progress.known, progress.total);
@@ -210,7 +230,10 @@ const Views = {
         '</ol></nav>' +
         '<div class="d-flex justify-content-between align-items-center mb-3">' +
           '<h4 class="mb-0">Study</h4>' +
-          '<span class="text-muted" id="studyCount"></span>' +
+          '<div class="d-flex align-items-center gap-3">' +
+            '<span class="text-muted" id="studyCount"></span>' +
+            '<button class="btn btn-success" id="studyAutoPlay" type="button">▶ Play</button>' +
+          '</div>' +
         '</div>' +
         '<div class="card study-item p-4 mb-4 text-center" id="studyCard">' +
           '<div class="term-row mb-2">' +
@@ -229,8 +252,7 @@ const Views = {
         '</div>' +
       '</div>'
     );
-    wrap.querySelector('[data-back]').addEventListener('click', (e) => { e.preventDefault(); onExit(); });
-    wrap.querySelector('[data-nav="catalog"]').addEventListener('click', (e) => e.preventDefault());
+    wrap.querySelector('[data-back]').addEventListener('click', (e) => { e.preventDefault(); stopAuto(); onExit(); });
 
     const engEl = wrap.querySelector('#studyEnglish');
     const hebEl = wrap.querySelector('#studyHebrew');
@@ -240,8 +262,12 @@ const Views = {
     const nextBtn = wrap.querySelector('#studyNext');
     const speakEnBtn = wrap.querySelector('#speakEnglish');
     const speakHeBtn = wrap.querySelector('#speakHebrew');
+    const autoPlayBtn = wrap.querySelector('#studyAutoPlay');
 
     let currentUtter = null;
+    // Auto-Play state (Sprint 03 feature d).
+    let playing = false;
+    let autoTimer = null;
 
     function speak(text, lang) {
       if (!('speechSynthesis' in window)) return;
@@ -273,6 +299,63 @@ const Views = {
       nextBtn.disabled = index === vocab.length - 1;
     }
 
+    function inDocument() {
+      return document.body.contains(autoPlayBtn);
+    }
+
+    function updatePlayBtn() {
+      autoPlayBtn.textContent = playing ? '■ Stop' : '▶ Play';
+      autoPlayBtn.classList.toggle('btn-success', !playing);
+      autoPlayBtn.classList.toggle('btn-danger', playing);
+    }
+
+    function stopAuto() {
+      playing = false;
+      clearTimeout(autoTimer);
+      autoTimer = null;
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      updatePlayBtn();
+    }
+
+    // Speaks the current item's English term, pauses ~2s, speaks the Hebrew
+    // term, pauses ~4s, then advances to the next item. On browsers without
+    // speech support the same fixed timing advances items with no audio.
+    function playItem() {
+      if (!playing || !inDocument()) return;
+      const item = vocab[index];
+      if (item) speak(item.english, 'en-US');
+      autoTimer = setTimeout(() => {
+        if (!playing || !inDocument()) return;
+        if (vocab[index]) speak(vocab[index].hebrew, 'he-IL');
+        autoTimer = setTimeout(() => {
+          if (!playing || !inDocument()) return;
+          if (index < vocab.length - 1) {
+            index += 1;
+            render();
+            playItem();
+          } else {
+            stopAuto();
+          }
+        }, 4000);
+      }, 2000);
+    }
+
+    function toggleAuto() {
+      if (playing) { stopAuto(); return; }
+      playing = true;
+      updatePlayBtn();
+      playItem();
+    }
+
+    // Resync playback to the item just navigated to while continuing to play.
+    function resyncAuto() {
+      if (!playing) return;
+      clearTimeout(autoTimer);
+      autoTimer = null;
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      playItem();
+    }
+
     speakEnBtn.addEventListener('click', () => {
       const item = vocab[index];
       if (item) speak(item.english, 'en-US');
@@ -282,8 +365,10 @@ const Views = {
       if (item) speak(item.hebrew, 'he-IL');
     });
 
-    prevBtn.addEventListener('click', () => { if (index > 0) { index -= 1; render(); } });
-    nextBtn.addEventListener('click', () => { if (index < vocab.length - 1) { index += 1; render(); } });
+    autoPlayBtn.addEventListener('click', toggleAuto);
+
+    prevBtn.addEventListener('click', () => { if (index > 0) { index -= 1; render(); resyncAuto(); } });
+    nextBtn.addEventListener('click', () => { if (index < vocab.length - 1) { index += 1; render(); resyncAuto(); } });
 
     render();
     return wrap;
@@ -342,7 +427,7 @@ const Views = {
 
     function render() {
       const q = questions[index];
-      promptEl.textContent = 'What is the Hebrew for: “' + q.prompt + '”?';
+      promptEl.textContent = q.prompt;
       optionsEl.innerHTML = '';
       q.options.forEach((opt) => {
         const btn = el(
@@ -423,7 +508,7 @@ const Views = {
 
     function render() {
       const q = questions[index];
-      promptEl.textContent = 'What is the Hebrew for: “' + q.prompt + '”?';
+      promptEl.textContent = q.prompt;
       optionsEl.innerHTML = '';
       q.options.forEach((opt) => {
         const btn = el(
@@ -441,6 +526,10 @@ const Views = {
     function choose(q, chosen) {
       const buttons = optionsEl.querySelectorAll('.option-btn');
       buttons.forEach((b) => b.disabled = true);
+      // Neutral selection indicator (Sprint 03 feature e): show the chosen
+      // option without revealing whether it is correct.
+      const chosenBtn = optionsEl.querySelector('[data-opt="' + chosen.id + '"]');
+      if (chosenBtn) chosenBtn.classList.add('selected');
       answers.push(chosen.id === q.correctId);
       const last = index === questions.length - 1;
       nextBtn.classList.remove('d-none');
@@ -554,35 +643,6 @@ const Views = {
     return wrap;
   },
 
-  /* Admin login form. */
-  adminLogin(onSubmit) {
-    const wrap = el(
-      '<div class="row justify-content-center">' +
-        '<div class="col-md-5">' +
-          '<div class="card p-4">' +
-            '<h4 class="mb-3">Admin Sign In</h4>' +
-            '<form id="adminLoginForm">' +
-              '<div class="mb-3"><label class="form-label">Username</label>' +
-                '<input class="form-control" name="username" autocomplete="username" required></div>' +
-              '<div class="mb-3"><label class="form-label">Password</label>' +
-                '<input class="form-control" type="password" name="password" autocomplete="current-password" required></div>' +
-              '<div id="loginError" class="alert alert-danger d-none"></div>' +
-              '<button class="btn btn-primary" type="submit">Sign In</button>' +
-            '</form>' +
-          '</div>' +
-        '</div>' +
-      '</div>'
-    );
-    wrap.querySelector('#adminLoginForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const form = e.currentTarget;
-      const username = form.username.value;
-      const password = form.password.value;
-      onSubmit(username, password, form);
-    });
-    return wrap;
-  },
-
   /* Admin panel: lesson list with expand/collapse + edit/add. */
   adminPanel(lessons, callbacks) {
     const wrap = el('<div></div>');
@@ -600,9 +660,11 @@ const Views = {
     const addLesson = el(
       '<div class="card p-3 mb-4">' +
         '<h6 class="mb-3">Add New Lesson</h6>' +
-        '<div class="input-group">' +
-          '<input class="form-control" id="newLessonTitle" placeholder="Lesson title">' +
-          '<button class="btn btn-primary" id="addLessonBtn">Add Lesson</button>' +
+        '<div class="row g-2 align-items-center">' +
+          '<div class="col-12 col-md-5"><input class="form-control" id="newLessonTitle" placeholder="Lesson title"></div>' +
+          '<div class="col-6 col-md-3"><select class="form-select" id="newLessonLevel">' + levelOptions(1) + '</select></div>' +
+          '<div class="col-6 col-md-3"><select class="form-select" id="newLessonEmoji">' + emojiOptions('📘') + '</select></div>' +
+          '<div class="col-12 col-md-1"><button class="btn btn-primary" id="addLessonBtn">Add</button></div>' +
         '</div>' +
         '<div id="addLessonError" class="alert alert-danger d-none mt-2 mb-0"></div>' +
       '</div>'
@@ -610,19 +672,21 @@ const Views = {
     addLesson.querySelector('#addLessonBtn').addEventListener('click', () => {
       const title = addLesson.querySelector('#newLessonTitle').value.trim();
       if (!title) return;
-      callbacks.onAddLesson(title);
+      const level = parseInt(addLesson.querySelector('#newLessonLevel').value, 10);
+      const emoji = addLesson.querySelector('#newLessonEmoji').value;
+      callbacks.onAddLesson(title, level, emoji);
     });
     wrap.appendChild(addLesson);
 
     lessons.forEach((lesson) => {
       const card = el(
         '<div class="card p-3 mb-3">' +
-          '<div class="d-flex justify-content-between align-items-center">' +
-            '<div class="d-flex gap-2 align-items-center flex-grow-1">' +
-              '<input class="form-control lesson-title-input" value="' + esc(lesson.title) + '">' +
-              '<button class="btn btn-outline-primary save-title-btn">Save</button>' +
-              '<button class="btn btn-link toggle-vocab">' + esc(lesson.vocab_count) + ' items ▾</button>' +
-            '</div>' +
+          '<div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">' +
+            '<input class="form-control lesson-title-input" style="max-width:280px" value="' + esc(lesson.title) + '">' +
+            '<select class="form-select lesson-level-select" style="max-width:120px">' + levelOptions(lesson.level) + '</select>' +
+            '<select class="form-select lesson-emoji-select" style="max-width:90px">' + emojiOptions(lesson.emoji) + '</select>' +
+            '<button class="btn btn-outline-primary save-title-btn">Save</button>' +
+            '<button class="btn btn-link toggle-vocab">' + esc(lesson.vocab_count) + ' items ▾</button>' +
           '</div>' +
           '<div class="vocab-list mt-3 d-none"></div>' +
           '<div class="add-vocab mt-3 d-none">' +
@@ -637,6 +701,8 @@ const Views = {
         '</div>'
       );
       const titleInput = card.querySelector('.lesson-title-input');
+      const levelSelect = card.querySelector('.lesson-level-select');
+      const emojiSelect = card.querySelector('.lesson-emoji-select');
       const saveBtn = card.querySelector('.save-title-btn');
       const toggleBtn = card.querySelector('.toggle-vocab');
       const vocabList = card.querySelector('.vocab-list');
@@ -644,7 +710,9 @@ const Views = {
 
       saveBtn.addEventListener('click', () => {
         const title = titleInput.value.trim();
-        if (title && title !== lesson.title) callbacks.onUpdateLesson(lesson.id, title);
+        const level = parseInt(levelSelect.value, 10);
+        const emoji = emojiSelect.value;
+        if (title) callbacks.onUpdateLesson(lesson.id, title, level, emoji);
       });
 
       toggleBtn.addEventListener('click', async () => {
