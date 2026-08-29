@@ -686,3 +686,252 @@ db.py -> SQLite (lessons, vocab, scores, users, attempt_items, known_words) [unc
   features (feature e, Brief 05).
 - No new features are added beyond those in `enhancements/scope.md`
   (constraint h).
+
+---
+
+# Part D — Sprint 03 Enhancement Pass (UI polish, Study Auto-Play, lesson levels)
+
+This section defines the architectural deltas required by
+`enhancements/scope.md` and `features/briefs/*.md` (features a–j). It **extends**
+the v0.1 spec (Part A) and the Sprint 01 and Sprint 02 specs (Parts B and C); it
+does not replace any of them. Every item in Parts A–C remains in force unless
+explicitly superseded below.
+
+Sprint 03 is a mixed, frontend-focused pass. Per `enhancements/scope.md`
+constraint **l**, the **only backend additions** are the `level` and `emoji`
+fields on lessons (with seed data and API exposure/acceptance). All other
+features (a–h) are frontend-only and require **no schema or API change** beyond
+the lessons `level`/`emoji` fields.
+
+## 22. Data model and database schema changes
+
+### `lessons` (modified — add two columns)
+
+| column    | type    | notes                                             |
+|-----------|---------|---------------------------------------------------|
+| `level`   | INTEGER | difficulty 1–5, higher = harder (NOT NULL, DEFAULT 1) |
+| `emoji`   | TEXT    | single emoji illustrating the lesson (NOT NULL, DEFAULT '📘') |
+
+- `level` (feature i, Brief 09): valid values are 1–5, default 1. Display-only;
+  **no gating or unlocking** logic is added (scope boundary).
+- `emoji` (feature j, Brief 10): a non-empty string; because an emoji may be
+  multi-codepoint (e.g. 👨👩👧), it is validated only as a non-empty string, with
+  no single-character or length restriction. The default placeholder `📘`
+  applies when an admin creates a lesson without choosing an emoji, keeping
+  admin-created rows unambiguous.
+- The existing `lessons` columns (`id`, `title`, `created_at`) are unchanged.
+  `vocab`, `scores`, `users`, `attempt_items`, and `known_words` are unchanged.
+
+### Migration approach (existing on-disk DBs)
+
+Both columns are added via `ALTER TABLE ADD COLUMN` with defaults, following the
+existing `_migrate`/`_add_*` pattern in `backend/app/db.py` (the same precedent
+used for `vocab.transliteration` and `scores.user_id`). Two new helpers are wired
+into `_migrate`, each checking `PRAGMA table_info(lessons)` and returning early
+if the column already exists (idempotent):
+
+- `_add_lesson_level(conn)` → `ALTER TABLE lessons ADD COLUMN level INTEGER NOT NULL DEFAULT 1`
+- `_add_lesson_emoji(conn)` → `ALTER TABLE lessons ADD COLUMN emoji TEXT NOT NULL DEFAULT '📘'`
+
+The existing on-disk database is **not** dropped or recreated. Because the five
+seeded lessons are re-seeded idempotently (see §24), their `level`/`emoji`
+values are back-filled as part of the existing seed flow when those seed rows are
+created; pre-existing admin-created rows keep the column defaults until edited
+via the admin API.
+
+### Seeding
+
+The five seeded lessons are all assigned **Level 1** (scope boundary, item i)
+and back-filled with these specific emojis (scope boundary, item j), matched to
+the seeded lesson names to keep seed data reproducible:
+
+| seeded lesson name  | emoji | description            |
+|---------------------|-------|------------------------|
+| Greetings & Basics  | 👋    | waving hand            |
+| Numbers & Time      | 🔢    | numbers                |
+| Family              | 👨👩👧 | family                 |
+| Food & Drink        | 🍎    | apple                  |
+| Common Verbs        | ⚡    | high voltage / action  |
+
+Seeding stays idempotent (skip if lessons already exist) so restarts do not
+duplicate data; the `level`/`emoji` back-fill rides on the existing seed rows.
+
+## 23. API contract changes
+
+All additions follow the same conventions as Parts A–C: JSON, base path `/api`,
+`{"data": ...}` on success. Admin mutating routes continue to require
+`Authorization: Bearer <admin-token>` (the dummy gate is unchanged).
+
+### Lesson catalog & vocabulary (modified — add `level`/`emoji` to reads)
+
+**`GET /api/lessons`**
+- 200 → `{"data": [ { "id": 1, "title": "…", "vocab_count": 10, "level": 1, "emoji": "👋" }, … ]}`
+- The `level`/`emoji` fields are added to each catalog entry so the Catalog
+  cards can render the "Level N" badge and the emoji (features i, j).
+
+**`GET /api/lessons/{lesson_id}`**
+- 200 → `{"data": { "id": 1, "title": "…", "level": 1, "emoji": "👋", "vocab": [ {"id": 1, "english": "…", "hebrew": "…"}, … ] }}`
+- Both `level` and `emoji` are returned in the detail response, consistent with
+  the list response. The Lesson screen uses `level` (Level badge, feature i);
+  the extra `emoji` field is harmless (emoji is rendered only on Catalog cards
+  per Brief 10).
+- 404 → `{"detail": "Lesson not found"}` (unchanged).
+
+**`GET /api/lessons/{lesson_id}/vocab`** — unchanged (no `level`/`emoji`; vocab
+items do not carry them).
+
+### Admin (modified — accept `level`/`emoji` on create/update)
+
+**`POST /api/admin/lessons`** (Bearer admin token)
+- Request body: `{"title": "…", "level": 1, "emoji": "📘"}` — `title` required;
+  `level` and `emoji` **optional**, defaulting to `1` and `📘` respectively.
+- 201 → `{"data": {"id": N, "title": "…", "level": 1, "emoji": "📘", "vocab": []}}`
+- 401 → invalid/missing token.
+- 422 → validation error (e.g. `level` not an integer in 1–5).
+
+**`PUT /api/admin/lessons/{lesson_id}`** (Bearer admin token)
+- Request body: any subset of `{title, level, emoji}` (at least one present),
+  preserving **partial-edit** semantics consistent with the vocab PUT
+  (`PUT /api/admin/vocab/{vocab_id}`). Only the provided fields are updated;
+  the existing `title` update behavior is unchanged.
+- 200 → `{"data": {"id": N, "title": "…", "level": 1, "emoji": "👋"}}` (full,
+  post-update lesson fields); 404 if lesson missing.
+- 401 → invalid/missing token.
+- 422 → validation error if a provided `level` is not an integer in 1–5.
+
+### Validation semantics
+
+- **`level`:** an integer **1–5**; out-of-range (or non-integer) is rejected
+  with **422**, not clamped.
+- **`emoji`:** a **non-empty string** only; no single-character or length
+  restriction (an emoji may be multi-codepoint, e.g. 👨👩👧). An empty string is
+  rejected (422).
+
+## 24. Application state flow changes
+
+The v0.1 / Sprint 01 / Sprint 02 flows (Parts A–C §5, §11, §18) are extended as
+follows:
+
+1. **Catalog render (features i, j).** `GET /api/lessons` now returns `level`
+   and `emoji`; the Catalog cards render a "Level N" badge and the lesson emoji.
+2. **Lesson screen (feature i).** `GET /api/lessons/{id}` returns `level`; the
+   Lesson screen renders a "Level N" badge.
+3. **Admin create/edit lesson (features i, j).** The Admin lesson form gains a
+   Level field (1–5, default 1) and an emoji picker (a small **bundled curated
+   frontend set**, per constraint k — not an open-ended search). Submitting
+   `POST /api/admin/lessons` or `PUT /api/admin/lessons/{id}` includes
+   `level`/`emoji`; after a save the frontend re-fetches the catalog/lesson as
+   before.
+4. **All other Sprint 03 features are frontend-only and do not change state
+   flow:**
+   - Catalog breadcrumb repair (a) — event-delegation wiring of existing
+     `data-nav` links; navigation targets unchanged.
+   - Footer removal (b) — static DOM/CSS removal.
+   - Page transitions (c) — `document.startViewTransition` cross-fade with
+     instant-swap fallback; no API impact.
+   - Study Auto-Play (d) — a green play/stop control; uses the browser Web
+     Speech API (`SpeechSynthesis`) to speak English then Hebrew per item with
+     roughly 2s/4s pauses, advancing within the current lesson only; audio-free
+     timed advance where speech is unsupported. No API writes.
+   - Exam selection indicator (e) — neutral style on the chosen option; no
+     correctness revealed.
+   - Enlarged centered Quiz/Exam question (f) — CSS presentation change.
+   - Admin button rename + automatic admin sign-in (g, h) — the frontend
+     supplies a fixed credential to the existing dummy gate
+     (`POST /api/admin/login`) and removes the Admin sign-in form; the backend
+     gate is unchanged.
+
+The backend remains the single source of truth; the frontend only reflects what
+the API returns and holds no authoritative lesson state.
+
+## 25. Backend vs frontend responsibility changes
+
+### Backend (Stage 6) additionally owns
+- The `lessons.level` and `lessons.emoji` columns; the `_add_lesson_level` /
+  `_add_lesson_emoji` migration helpers wired into `_migrate` (no drop-and-
+  recreate).
+- Extending the five seeded lessons with `level = 1` and their specific emojis
+  (idempotent back-fill on the existing seed rows).
+- Exposing `level`/`emoji` in `GET /api/lessons` and `GET /api/lessons/{id}`.
+- Accepting `level`/`emoji` (with defaults 1 / 📘) on `POST /api/admin/lessons`
+  and as optional partial-update fields on `PUT /api/admin/lessons/{id}`.
+- Validating `level` (integer 1–5 → 422 otherwise) and `emoji` (non-empty string).
+
+### Frontend (Stage 7) additionally owns
+- Rendering the "Level N" badge and the emoji on Catalog lesson cards (i, j).
+- Rendering the "Level N" badge on the Lesson screen (i).
+- The Admin lesson form's Level field (1–5, default 1) and the bundled curated
+  emoji picker (j), sending `level`/`emoji` on lesson create/update.
+- The Catalog breadcrumb repair via event delegation on dynamically-rendered
+  `data-nav` links (a).
+- Removing the app footer (b).
+- Page transitions via `document.startViewTransition` with instant-swap fallback (c).
+- Study Auto-Play: the green play/stop control, Web Speech API playback with
+  2s/4s timing, resync on manual navigation, stop on leaving the lesson, and
+  audio-free timed advance where speech is unsupported (d).
+- The Exam neutral selection indicator (e) and the enlarged, centered Quiz/Exam
+  question and Hebrew options (f).
+- Renaming the Title screen's Admin button to "Admin" and the automatic admin
+  sign-in that supplies a fixed credential to the existing dummy gate, removing
+  the Admin sign-in form (g, h).
+
+### Shared contract notes
+- The emoji picker is a **bundled curated frontend set** (constraint k); the
+  backend stores whatever non-empty string is sent and does not validate it
+  against any curated list.
+- Auto-Play operates within the current lesson only (scope boundary); it does
+  not chain across lessons and makes no API writes.
+- The admin automatic sign-in is a documented simplification: the backend dummy
+  gate is retained, and the frontend simply supplies a fixed credential to obtain
+  an admin token (constraint m).
+
+## 26. Component interaction changes
+
+```
+Browser (frontend/static, Bootstrap, Web Speech API for Auto-Play,
+         View Transitions API for page transitions)
+   |
+   | GET  /api/lessons, /api/lessons/{id}   (+ level, emoji)
+   | POST/PUT /api/admin/lessons[/{id}]     (accept level, emoji; Bearer admin-token)
+   | ...other /api/... contracts unchanged (Parts A–C)
+   v
+FastAPI app (app.main:app)
+   |-- routers/catalog.py         -> lessons/vocab (+ level, emoji)
+   |-- routers/admin.py           -> login gate + lesson/vocab mutations (+ level, emoji)
+   |-- routers/users.py           -> GET /api/users (unchanged)
+   |-- routers/auth.py            -> signup/login/logout/me (unchanged)
+   |-- routers/scores.py          -> attempts / review (unchanged)
+   |-- routers/progress.py        -> known-word progress (unchanged)
+   |-- models.py                  -> Pydantic schemas (add level/emoji to lesson schemas)
+   v
+db.py -> SQLite (lessons +level+emoji, vocab, scores, users, attempt_items, known_words)
+```
+
+- The only new backend interactions are the `level`/`emoji` fields flowing
+  through the lessons read and admin create/update endpoints.
+- Page transitions and Study Auto-Play stay entirely in the browser (View
+  Transitions API and Web Speech API respectively); no new backend interaction
+  is introduced for items c and d.
+
+## 27. Explicitly unchanged / out of scope
+
+- **No drop-and-recreate** of the existing database. `lessons` gains two columns
+  via `ALTER TABLE ADD COLUMN`; `vocab`, `scores`, `users`, `attempt_items`, and
+  `known_words` are unchanged. No table is removed.
+- The dummy admin gate (`POST /api/admin/login` and admin token enforcement) is
+  unchanged; automatic admin sign-in is a frontend-only simplification over it
+  (features g, h, constraint m).
+- All other v0.1 / Sprint 01 / Sprint 02 API contracts (auth, users, scores,
+  review, progress, catalog/vocab reads, vocab admin CRUD) are unchanged except
+  where the lessons `level`/`emoji` fields are added above.
+- **No lesson gating or unlocking** by level (feature i, scope boundary).
+- The emoji is shown on **Catalog lesson cards only**, not on the Lesson screen
+  (feature j, Brief 10).
+- Study Auto-Play does not chain across lessons and adds no audio to quiz/exam;
+  it reuses the existing client-side Web Speech API (feature d).
+- Page transitions degrade to the existing instant swap on unsupported browsers
+  (feature c); the transition changes only the navigation feel, not which screens
+  exist or how targets are chosen.
+- The footer removal, Exam selection indicator, enlarged/centered question, and
+  Admin button rename are presentation-only and change no data or contracts.
+- No features beyond those in `enhancements/scope.md` are added (constraint k).
