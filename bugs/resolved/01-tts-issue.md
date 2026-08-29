@@ -2,7 +2,7 @@
 
 ## Status
 
-Fixed.
+Resolved.
 
 ## Summary
 
@@ -153,3 +153,11 @@ Implemented the approved fail-safe hardening in `frontend/js/views.js` `speak()`
 TTS across multiple consecutive vocab items (English and Hebrew) and confirm no
 utterance reads "Exclamation Point". Stage 3 will mark this `Resolved` after
 your confirmation.
+
+## Verification (Stage 3)
+
+- **Confirmed by:** Jarad
+- **Confirmation date:** 2026-08-29
+- **Outcome:** Resolved — "Testing shows TTS issues are resolved." Verified TTS
+  across multiple consecutive vocab items (English and Hebrew) in a real
+  browser; no word reads "Exclamation Point".
