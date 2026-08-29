@@ -15,6 +15,7 @@ roles and humans, not a place to duplicate the role's full work.
 - **Date:** <YYYY-MM-DD>
 - **Author / Executor:** <name>
 - **Instruction file:** `instructions/<NN>-<slug>.md`
+- **Commit:** `stage <NN>: <brief summary>`
 
 ## Work Completed
 

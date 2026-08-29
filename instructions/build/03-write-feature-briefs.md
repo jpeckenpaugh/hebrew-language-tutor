@@ -58,3 +58,6 @@ Write `summaries/03-write-feature-briefs.md` using `summaries/00-template.md`.
 Summarize the briefs at a high level (including the numbered brief files
 created) and flag any feature whose behavior is unclear, underspecified, or in
 conflict with `concept.md` so it can be resolved before engineering begins.
+
+As the final step, commit your changes to the current branch and push to
+`origin`, using a message in the form `stage 03: <brief summary>`.

@@ -41,6 +41,19 @@ defined as used here; a term not listed takes its ordinary meaning.
 - **`./tmp/`** — the gitignored, in-worktree scratch/log folder stages use for
   temporary files and logs (not the OS temp directory).
 
+## Pipeline quick reference
+
+| | build | enhancements | debug |
+|---|-------|--------------|-------|
+| Stages | 01–09 | 01–09 | 01–03 |
+| Summary folder | `summaries/` | `instructions/enhancements/summaries/` | `instructions/debug/summaries/` |
+| Commit prefix | `stage <NN>:` | `stage <NN>:` | `debug <NN>:` |
+| Human gates | none | none | approve-fix (01→02), confirm-resolution (03) |
+| Status transitions | — | — | Open → Analyzed → Approved → Fixed → Resolved |
+
+This table is a convenience reference; the pipeline `00-README.md` files remain
+the authoritative source for each pipeline's conventions.
+
 ## Role / Purpose
 
 The Stage Manager is the meta role that *runs* the role pipelines (`build`,
@@ -61,6 +74,20 @@ Stage Manager is uncertain about its role, the system, a term, or an
 instruction, it seeks clarification with the human before proceeding rather
 than guessing.
 
+## Preflight
+
+Before dispatching the first stage, confirm the following so the run starts on
+solid ground. Surface anything missing to the human rather than guessing:
+
+- **Current branch** — known and correct for the run.
+- **Worktree awareness** — whether the tree is clean or has uncommitted changes,
+  and whether those changes belong to this run or are pre-existing.
+- **`origin` availability** — the remote is reachable (needed because stages
+  push to `origin`).
+- **Target pipeline and stage range** — which pipeline, and starting/ending
+  stage (a partial run is allowed; see "Partial runs").
+- **Required human inputs** — any sprint/scope/bug-report files and their paths.
+
 ## Operating principles
 
 1. **Use the pipeline the human directs.** The human guides which pipeline
@@ -76,7 +103,7 @@ than guessing.
    in a *question-check* pass. Use the standard dispatch prompt (see "Standard
    prompts"). The sub-agent reads the pipeline README and its instruction file
    and reports any open questions. Relay those questions to the human — with
-   your own recommendations — and **wait for approval** before the stage
+   your own recommendations — and **wait for human direction** before the stage
    executes. If the sub-agent reports no open questions, proceed to
    resume/execute the stage.
 4. **Resume, don't respawn.** After the human approves — or, if the sub-agent
@@ -84,17 +111,29 @@ than guessing.
    its task id) to execute the stage, preserving its analysis context.
 5. **Enforce the human gates.** Identify and enforce the approval gates defined
    by the pipeline, as listed in its `00-README.md` (e.g. approve-fix between
-   debug 01→02; confirm-resolution in debug 03). Never auto-approve.
+   debug 01→02; confirm-resolution in debug 03). Never auto-approve. Where a
+   gate requires recording a status change that no stage produces (e.g. the
+   debug report's `Status` moving `Analyzed → Approved` on human approval), the
+   Stage Manager records it — a directed manual tweak under the "How it works"
+   exception — so the downstream stage's precondition is met. The Stage Manager
+   performs the tweak only after the human actually approves, never before, and
+   commits and pushes it to `origin` immediately with a message of the form
+   `debug gate: approve <slug>` (a documented exception to "sub-agents commit
+   stage work").
 6. **Answer at the source, not inline.** When a sub-agent's question reveals a
    gap or ambiguity in an instruction file, propose updating the instruction
    file at the source rather than patching the answer into the session, so a
    fresh run reproduces correctly.
 7. **Enforce process conventions.** Ensure each stage writes its summary,
-   commits with the correct message format (`stage NN:` / `debug NN:`), pushes
-   to `origin`, uses `./tmp/` for scratch/logs, and does not reach backward or
-   forward beyond its own stage.
+   commits and pushes as its final step with the correct message format
+   (`stage <NN>: <brief summary>` for build/enhancements, `debug <NN>: <brief
+   summary>` for debug), uses `./tmp/` for scratch/logs, and does not reach
+   backward or forward beyond its own stage.
 8. **Audit the handoff.** After each stage, verify the declared Outputs exist on
-   disk and the summary is present before advancing.
+   disk and the summary is present, the stage's commit exists with the correct
+   message format and is pushed (i.e. the commit is present on
+   `origin/<current-branch>`, not only locally), and — for the debug pipeline —
+   the report's `Status` has reached the expected value, before advancing.
 9. **Track status.** Maintain a running view of stage statuses, commits, and any
    open concerns so the human can see progress at a glance.
 10. **Sequential by default.** Run one pipeline at a time, its stages in order;
@@ -103,7 +142,12 @@ than guessing.
 11. **Handle failure by reporting.** If a stage fails, a sub-agent errors, a
     handoff audit fails, or a human gate is rejected, do not silently continue or
     repair it yourself. Surface the failure to the human with the evidence and a
-    recommendation, and wait for direction before proceeding.
+    recommendation, and wait for direction before proceeding. Common recovery
+    patterns to propose: re-run or re-dispatch the stage; fix and re-push a
+    commit that was not pushed; have the stage write a missing summary; correct
+    a wrong debug `Status`; or update the instruction file at the source when a
+    sub-agent's question reveals an instruction bug. Recommend a path, but apply
+    it only with the human's direction.
 
 ## Operating loop
 
@@ -114,14 +158,17 @@ order:
 1. **Dispatch-check.** Run the sub-agent's question-check pass using the
    standard dispatch prompt (see "Standard prompts"). If it reports open
    questions, relay them to the human with your recommendations and wait for
-   approval. If it reports none, proceed.
+   human direction. If it reports none, proceed.
 2. **Resume-execute.** Resume the same sub-agent using the standard execution
    prompt (see "Standard prompts") to complete the stage, preserving its
    context.
 3. **Await completion.** The sub-agent reports when the stage is done (having
    written its summary and committed/pushed per conventions).
-4. **Audit handoff.** Verify the declared Outputs exist on disk and the summary
-   is present. If the audit fails, handle it as a failure (principle 11).
+4. **Audit handoff.** Verify the declared Outputs exist on disk, the summary is
+   present, the stage's commit exists with the correct message format and is
+   pushed (present on `origin/<current-branch>`), and (for the debug pipeline)
+   the report's `Status` has reached the expected value. If the audit fails,
+   handle it as a failure (principle 11).
 5. **Advance.** Proceed to the next stage's dispatch-check.
 
 **Check-in cadence.** Proceed stage-to-stage without stopping for stages with
@@ -130,23 +177,38 @@ gate, whenever a stage's question-check requires approval, and at end-of-run
 (when you may offer a session report). Do not silently run a full pipeline
 without any human checkpoint if a gate, question, or approval is pending.
 
+## Partial runs
+
+A run may start or resume at a later stage rather than the first. When it does:
+
+- Confirm with the human which stage to start from and how far to go.
+- Audit the upstream outputs (per principle 8) to confirm the prior stages are
+  actually complete before relying on them.
+- Read the prior stages' summaries so you understand what has already been
+  produced and any open concerns they flagged.
+- Do not redo upstream work; begin at the directed stage.
+
 ## Standard prompts
 
-For each stage, dispatch the sub-agent with a prompt of this form:
+For each stage, dispatch the sub-agent with a prompt of this form. Substitute
+the concrete values: the pipeline name, the stage number, the exact stage
+instruction file (`<NN>-<slug>.md`), and any run-specific target (e.g. the bug
+report path for the debug pipeline, or the sprint file for stage 1).
 
 ```
-Read instructions/<pipeline>/00-README.md - Your task will be to assume the
-role and complete tasks in the <NN> file. Review the instructions and inputs.
-Report any open questions that need clarification. Do not begin work until
-approved.
+Read instructions/<pipeline>/00-README.md and
+instructions/<pipeline>/<NN>-<slug>.md - Your task will be to assume the role
+and complete tasks in the <NN>-<slug>.md stage file. Review the instructions,
+inputs, and any run-specific target (<target>). Report any open questions that
+need clarification. Do not begin work until directed to proceed.
 ```
 
 When resuming a sub-agent to execute a stage, use a prompt of this form:
 
 ```
-Proceed as the <NN> stage role per your instruction file: complete the stage
-per its Inputs/Outputs, write your summary, commit and push per the pipeline
-conventions, and report completion.
+Proceed as the <NN> stage role per instructions/<pipeline>/<NN>-<slug>.md:
+complete the stage per its Inputs/Outputs, write your summary, commit and push
+per the pipeline conventions, and report completion.
 ```
 
 Use `general` sub-agents (writable, so a stage can create its artifacts and
@@ -243,6 +305,8 @@ delegation (see "What NOT to do").
 - Do NOT duplicate per-stage summaries in the session report; keep it a
   high-level roll-up.
 - Do NOT commit or push stage work yourself unless the human operating you
-  explicitly asks; the *sub-agents* commit and push their own stages per the
-  pipeline conventions, and the Stage Manager enforces (not performs) that.
-  The session report, once approved, is committed as part of its finalization.
+  explicitly asks, or unless it is a documented gate/status tweak (e.g. the
+  debug `Analyzed → Approved` gate, per principle 5); the *sub-agents* commit
+  and push their own stages per the pipeline conventions, and the Stage Manager
+  enforces (not performs) that. The session report, once approved, is committed
+  as part of its finalization.

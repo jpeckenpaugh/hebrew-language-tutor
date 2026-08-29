@@ -47,3 +47,6 @@ Write `summaries/02-decompose-features.md` using `summaries/00-template.md`.
 Record the resulting feature list at a high level (including the numbered
 feature files created) and note any features that are ambiguous or whose scope
 needs clarification before briefs are written.
+
+As the final step, commit your changes to the current branch and push to
+`origin`, using a message in the form `stage 02: <brief summary>`.

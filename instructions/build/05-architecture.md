@@ -53,3 +53,6 @@ Write `summaries/05-architecture.md` using `summaries/00-template.md`.
 Summarize the architecture at a high level and flag any unresolved design
 decisions, contract ambiguities, or schema concerns that backend and frontend
 engineers will need clarified before implementation.
+
+As the final step, commit your changes to the current branch and push to
+`origin`, using a message in the form `stage 05: <brief summary>`.

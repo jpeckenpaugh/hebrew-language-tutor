@@ -54,3 +54,6 @@ behavior or implement application features.
 Write `summaries/04-system-engineering.md` using `summaries/00-template.md`.
 Summarize the environment at a high level and flag any assumptions, missing
 dependencies, or platform caveats that downstream roles need to know about.
+
+As the final step, commit your changes to the current branch and push to
+`origin`, using a message in the form `stage 04: <brief summary>`.

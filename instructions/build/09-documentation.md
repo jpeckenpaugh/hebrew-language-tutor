@@ -46,3 +46,6 @@ retroactively repair or redefine upstream work.
 Write `summaries/09-documentation.md` using `summaries/00-template.md`.
 Summarize the close-out at a high level and record the project status, known
 issues, and recommended next actions.
+
+As the final step, commit your changes to the current branch and push to
+`origin`, using a message in the form `stage 09: <brief summary>`.

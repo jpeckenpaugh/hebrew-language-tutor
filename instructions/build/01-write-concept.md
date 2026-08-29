@@ -47,3 +47,6 @@ initial constraints — in plain words, with no technical detail.
 Write `summaries/01-write-concept.md` using `summaries/00-template.md`.
 Record a high-level overview of the concept and any open questions or concerns
 about the product scope that the next stages (or a human) should address.
+
+As the final step, commit your changes to the current branch and push to
+`origin`, using a message in the form `stage 01: <brief summary>`.

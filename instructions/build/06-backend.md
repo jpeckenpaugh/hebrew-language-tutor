@@ -75,3 +75,6 @@ Summarize the backend at a high level and flag any contract deviations,
 assumptions, or behavior questions the frontend engineer or verification stage
 must know about. Include any backend-authored content, run-script adjustments,
 or auth-gate lifecycle caveats.
+
+As the final step, commit your changes to the current branch and push to
+`origin`, using a message in the form `stage 06: <brief summary>`.

@@ -48,3 +48,6 @@ it interacts with the backend.
 Write `summaries/07-frontend.md` using `summaries/00-template.md`.
 Summarize the frontend at a high level and flag any API mismatches, behavior
 ambiguities, or assumptions the verification stage must check.
+
+As the final step, commit your changes to the current branch and push to
+`origin`, using a message in the form `stage 07: <brief summary>`.

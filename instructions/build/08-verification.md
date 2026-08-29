@@ -62,3 +62,6 @@ need to address. Record how the checklist was derived from the specifications
 and the verification method used (e.g., `curl` for API checks plus static review
 of frontend logic), including any limitation that browser interaction was not
 headlessly exercised.
+
+As the final step, commit your changes to the current branch and push to
+`origin`, using a message in the form `stage 08: <brief summary>`.

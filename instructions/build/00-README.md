@@ -74,6 +74,19 @@ example `summaries/02-decompose-features.md`). Use
 overview of what was done and any open questions or concerns that downstream
 roles (or a human) may need to address.
 
+## Per-stage commits
+
+Each stage commits its work as the **final step** of the stage, after producing
+all of its artifacts and writing its summary. Nothing is committed until the
+stage is fully done.
+
+- Commit all of the stage's changes (artifacts plus summary) to the current
+  branch and push to `origin`.
+- Use a commit message in the form `stage <NN>: <brief summary>`, where `<NN>`
+  is the stage number and the summary briefly describes the stage's changes
+  (for example `stage 06: add transliteration field and admin edit support`).
+- Do not commit work that is incomplete or from another stage.
+
 ## Temporary files and logs
 
 Temporary files, server/test logs, and scratch output produced while a role works
@@ -91,3 +104,5 @@ directory (e.g. `/tmp`) or into the project tree.
 - Each role writes its summary before handing off.
 - No role performs the work of another role, silently rewrites requirements,
   or repairs/redesigns work outside its scope.
+- Each stage commits and pushes its work to the current branch as its final
+  step (see "Per-stage commits").
