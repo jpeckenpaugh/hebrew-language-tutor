@@ -2,3 +2,5 @@
 backend/english_tutor.db
 __pycache__/
 *.pyc
+/tmp/*
+!/tmp/.gitkeep

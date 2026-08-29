@@ -72,6 +72,15 @@ architecture.md (extended) -> backend/ edits -> frontend/ edits ->
 verification-report.md (updated) -> README.md (updated)
 ```
 
+## Temporary files and logs
+
+Temporary files, server/test logs, and scratch output produced while a role works
+(such as capturing the running server's output during verification) are written
+to the project's `./tmp/` folder. `./tmp/` is gitignored (except its `.gitkeep`
+placeholder) and lives inside the worktree, so writes there are auto-writable
+and never committed. Do **not** write temporary files or logs to the OS temp
+directory (e.g. `/tmp`) or into the project tree.
+
 ## Summary requirement
 
 Every role must write a single markdown summary of its completed work into the
