@@ -229,3 +229,114 @@ state-flow logic.
 - The existing v0.1 results in Part A are unchanged and remain valid; the
   endpoints they exercised (catalog, vocab, scores, admin) all behaved
   identically during this pass.
+
+---
+
+# Part C — Sprint 02 Enhancement Pass (UI/UX refinements)
+
+- **Stage:** 8 — Verification Engineer
+- **Date:** 2026-08-29
+- **Method:** Live API verification with `curl` against a running instance of the
+  application (started via `./run.sh`), plus static review of the frontend
+  rendering logic. Browser interaction was **not** exercised by an automation
+  tool in this environment.
+- **Overall result:** **PASS** (12/12 checklist items passed; no failures found).
+  1 known limitation is recorded (see "Limitations"). The v0.1 (Part A) and
+  Sprint 01 (Part B) results above are preserved; all Part A/B endpoints
+  re-exercised during this pass behaved unchanged.
+
+## Checklist derivation
+
+The Sprint 02 checklist was derived from `enhancements/scope.md` (features a–g,
+constraints h–j), the seven feature briefs (`features/briefs/01-07/*.md`), and
+`docs/architecture.md` Part C (§16–21). Backend items are grouped by the single
+new Part C contract (`GET /api/users`); frontend items are grouped by the briefs.
+A representative regression set (Part A/B endpoints) is included per the
+verification brief. Each item below is traceable to a specific requirement.
+Frontend behavior is reviewed statically (rendering logic), not exercised in a
+browser.
+
+## Environment setup evidence
+
+- The environment was already provisioned by prior stages (`.venv/` with
+  `fastapi==0.111.0`, `uvicorn==0.30.1`; Bootstrap 5.3.3 under
+  `frontend/static/vendor/bootstrap/`). `install.sh` was **not** re-run for this
+  pass.
+- `./run.sh 8099` started Uvicorn on `0.0.0.0:8099` (`app.main:app`); startup log
+  recorded under `./tmp/08-stage08-server.log`.
+- Root `/` serves the SPA (HTTP 200); Bootstrap `bootstrap.min.css` and
+  `bootstrap.bundle.min.js` both return HTTP 200.
+- The existing `backend/english_tutor.db` (seeded 5 lessons, one prior user
+  `Jarad`) was used for the non-empty picker test. For the empty-state test the
+  DB was backed up to `english_tutor.db.bak`, run against a fresh DB (seeded
+  fresh), then restored.
+
+## Backend / API checks (live, via curl)
+
+| # | Check (traceable requirement) | Result | Evidence |
+|---|-------------------------------|--------|----------|
+| P1 | `GET /api/users` is public — succeeds with **no** auth header (Part C §17; Brief 01) | PASS | 200 on an unauthenticated client; `{"data":[{"id":1,"username":"Jarad"}]}`. |
+| P2 | `GET /api/users` returns one entry per existing user as `{id, username}` under the `{"data":...}` envelope (Part C §17) | PASS | `{"data":[{"id":1,"username":"Jarad"}]}`; entries carry only `id` + `username`. (Ordering not asserted — implementation choice per §17.) |
+| P3 | `GET /api/users` returns an empty list when there are no accounts (Brief 01 empty-state) | PASS | Against a fresh DB, `GET /api/users` → 200 `{"data":[]}`; fresh DB seeded 5 lessons. |
+| P4 | No v0.1 regression: catalog + lesson detail + unknown lesson (Part A §6) | PASS | `GET /api/lessons` → 200, 5 lessons, `vocab_count` all 10; `GET /api/lessons/1` → 200, 10 vocab with `transliteration`; `/api/lessons/999` → 404. |
+| P5 | No Sprint 01 regression: signup/login/me/logout + 409/401 semantics (Part B §13) | PASS | signup new user → 201; duplicate → 409; login → 200; `me` (auth) → 200 `{id,username}`; logout (auth) → 200; logout w/o token → 401. |
+| P6 | No Sprint 01 regression: user-scoped routes require the user token (Part B §13) | PASS | `GET /api/scores` and `GET /api/lessons/1/progress` w/o token → 401. |
+| P7 | No Sprint 01 regression: progress endpoint (Part B §13) | PASS | `GET /api/lessons/1/progress` (auth) → `{"total":10,"known":0,"known_vocab_ids":[]}`; unknown lesson → 404. |
+| P8 | No Sprint 01 regression: per-user scores + review (Part B §13) | PASS | `POST /api/scores` quiz → 201 with server-computed `score_pct` (90.0) and `user_id`; `GET /api/scores` → 200 (non-empty for user); `GET /api/scores/{id}/review` → 200, `wrong` = 1 item. |
+| P9 | No Sprint 01 regression: score validation (Part B §13) | PASS | `mode:"drill"` → 422; `correct:11,total:10` → 422. |
+| P10 | No v0.1 regression: admin dummy gate + token enforcement (Part A §6) | PASS | login → 200 token; mutate w/o token → 401; create lesson w/ token → 201; logout w/ token → 200; logout w/o token → 401; used token → 401. |
+| P11 | Frontend sources the picker from the API, not a hardcoded list (Brief 01; scope constraint i) | PASS (static) | `app.js` `goTitle()` calls `api('/api/users')` and passes `res.data` to `Views.title`; no usernames are hardcoded. |
+| P12 | Picker is pick-then-sign-in; selection alone does not sign in (Brief 01) | PASS (static) | `Views.title` wires the submit handler to call `onSignIn(picker.value)` only on form submit; selecting an `<option>` mutates no session state. |
+
+## Frontend checks (static review)
+
+The frontend (`index.html`, `js/app.js`, `js/views.js`, `css/style.css`) was
+reviewed against the briefs. Both `app.js` and `views.js` pass `node --check`
+syntax validation. Browser interaction is **not** headlessly exercised in this
+environment; the results below are based on static review of the rendering and
+state-flow logic.
+
+| # | Check (traceable requirement) | Result | Evidence (static review) |
+|---|-------------------------------|--------|--------------------------|
+| F1 | Title screen shows a sign-in **picker** dropdown in place of the free-text username field, populated from `GET /api/users` (Brief 01) | PASS | `Views.title` renders a `<select id="titleUserPicker">` populated from the `users` array passed by `app.js` `goTitle()` (from `/api/users`); no free-text username input remains. |
+| F2 | Selecting a name does **not** sign in by itself; Sign In still required (Brief 01) | PASS | `Views.title` only calls `onSignIn(picker.value)` on form submit; `authenticate('login', …)` is invoked only on submit. |
+| F3 | Empty-state: with no accounts, the picker shows a hint to Create Account and disables sign-in (Brief 01) | PASS | When `users` is empty, `Views.title` renders "No accounts yet…" hint, sets a disabled placeholder option, and disables the picker and Sign In button. API empty-list confirmed (P3). |
+| F4 | "Create Account" opens a modal asking for a non-empty username (Brief 02) | PASS | `Views.createAccountModal` renders a Bootstrap modal with a username input; `app.js` `createAccount` trims and rejects blank with "Please enter a non-empty username." |
+| F5 | Creating an account does **not** auto-sign-in; returns to Title; new account appears in picker (Brief 02) | PASS | `createAccount` calls existing `POST /api/auth/signup`, hides the modal, then calls `goTitle()` (which re-fetches `/api/users`) — no token is stored, so the user is not signed in; the re-fetch makes the new account appear in the picker. |
+| F6 | Admin sign-out uses a "Log out" control and returns to the main Title screen; separate "Sign Out" button removed (Brief 03) | PASS | `Views.adminPanel` renders a single `#adminLogout` "Log out" button (no separate "Sign Out"); `adminCallbacks().onLogout` calls `POST /api/admin/logout` then `goTitle()` (main Title screen), not `goAdmin()`. |
+| F7 | Larger term text on Study, Quiz, and Exam; layout preserved (Brief 04) | PASS | CSS: `.term-en`/`.term-he` at `2rem`; `#quizPrompt`/`#examPrompt` at `1.75rem`; `.option-btn` at `1.4rem`. Only font sizes changed; no content/scoring/behavior changes in the study/quiz/exam renderers. |
+| F8 | Inline TTS speaker icons beside each English and Hebrew term; separate-line TTS buttons removed (Brief 05) | PASS | `Views.study` renders `.term-row` with `#studyEnglish` + `#speakEnglish` 🔊 and `#studyHebrew` + `#speakHebrew` 🔊 icons beside the terms; the former separate-line TTS button row is gone. Icons call the existing Web Speech API (`speak()` with `en-US`/`he-IL`). |
+| F9 | Top-nav "Admin" link removed for signed-in users (Brief 06) | PASS | `index.html` gives the Admin nav item `id="adminNavItem"` with default `d-none`; `setNavVisibility()` keeps it hidden whenever a user or admin session is active (`userToken || adminToken`). Admin remains reachable via the Title screen entry. |
+| F10 | "Signed in as {User}" badge removed from sub-nav (Brief 07) | PASS | `index.html` contains no "Signed in as" / `userBadge` element; `updateUserBadge()` no longer references a badge, only toggles the logout button. |
+| F11 | No unrequested features added; frontend holds no authoritative copy (scope constraint h/i) | PASS | `app.js`/`views.js` only render API data and reuse the existing signup/login/logout endpoints; no new endpoints, no deletion UI, no extra auth/audio/account features. |
+| F12 | Frontend JS parses cleanly (build sanity) | PASS | `node --check` on `app.js` and `views.js` both exit 0. |
+
+## Summary of results
+
+- **Total checks:** 12 (12 rows above: 4 backend/API live + 2 backend static + 6
+  frontend static; numbered P1–P12).
+- **Passed:** all checks passed.
+- **Failed:** none.
+
+## Limitations (known, per constraint j — recorded, not failures)
+
+- **L1. User-list ordering is an implementation choice.** `GET /api/users`
+  returns users `ORDER BY id` (documented in `summaries/06-backend.md`); Part C
+  §17 leaves ordering to implementation choice, so the verification asserts the
+  contract shape and membership, not a specific order.
+
+## Notes
+
+- Verification created transient data (a user `verify_s02`, one quiz score, one
+  admin lesson) against the running app; the database is gitignored, so no test
+  data is committed.
+- The empty-state check was run against a fresh (seeded) DB; the original DB was
+  restored afterward.
+- Browser interaction (clicking through the picker/modal, admin logout routing,
+  TTS icons, larger text rendering in a live browser) was **not** automated in
+  this environment; frontend behavior was verified by static review of rendering
+  logic plus API-level verification of the endpoints the frontend consumes.
+- The existing Part A (v0.1) and Part B (Sprint 01) results are unchanged and
+  remain valid; all Part A/B endpoints re-exercised here (catalog, vocab,
+  progress, scores, review, signup/login/logout/me, admin) behaved identically
+  during this pass.
