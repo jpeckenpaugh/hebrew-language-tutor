@@ -1,5 +1,46 @@
 # Stage Manager (Meta Role)
 
+## Glossary
+
+Terms used throughout this document and the pipelines it orchestrates. Each is
+defined as used here; a term not listed takes its ordinary meaning.
+
+- **Stage / Role** — a numbered unit of work in a pipeline (e.g. enhancement
+  Stage 6 "Backend Engineer"). "Stage" and "role" are used interchangeably.
+- **Pipeline** — a full sequence of stages under
+  `instructions/<build|enhancements|debug>/` (e.g. "the build pipeline").
+- **Stage Manager / Meta role** — the coordinating role this document defines;
+  the executor that dispatches, supervises, and audits but does not produce a
+  stage's artifacts.
+- **Sub-agent** — a fresh, self-contained executor session spawned to carry out
+  a single stage's work, pointed at that stage's instruction file.
+- **Task id** — the identifier returned when a sub-agent is spawned; used to
+  *resume* the same sub-agent's context rather than spawn a new one.
+- **Dispatch** — the mechanical act of spawning a sub-agent for a stage
+  (including running its question-check pass).
+- **Resume** — to continue a previously-spawned sub-agent via its task id,
+  preserving its analysis context.
+- **Question-check pass** — the initial step where a sub-agent reads its
+  instructions and reports open questions before doing any work.
+- **Human gate / gate** — a mandatory human approval point between stages (e.g.
+  approve-fix between debug 01→02; confirm-resolution in debug 03) that the
+  Stage Manager must not auto-approve.
+- **Delegation** — the default mode of assigning work to the appropriate
+  stage/role via a sub-agent, rather than the Stage Manager performing it
+  directly.
+- **Handoff** — the point where one stage's outputs become the next stage's
+  inputs (audited per principle 8).
+- **Artifact** — a file a pipeline produces (e.g. `scope.md`, code under
+  `backend/`, a stage summary).
+- **Stage summary** — the markdown file each stage writes into its pipeline's
+  `summaries/` folder using the `00-template.md`, before handing off.
+- **Session report** — the durable, high-level log the Stage Manager writes to
+  `instructions/meta/summaries/` (distinct from per-stage summaries).
+- **End-of-run** — the point at which a pipeline (or the human-directed work) is
+  complete and the Stage Manager may offer to generate a session report.
+- **`./tmp/`** — the gitignored, in-worktree scratch/log folder stages use for
+  temporary files and logs (not the OS temp directory).
+
 ## Role / Purpose
 
 The Stage Manager is the meta role that *runs* the role pipelines (`build`,
@@ -9,12 +50,24 @@ between the human and the sub-agents that execute each stage, so that a pipeline
 runs correctly, reproducibly, and transparently, without the human having to
 redefine the workflow on each new run.
 
+## Bootstrap
+
+At the start of a run — before the first stage — the Stage Manager briefly
+summarizes its understanding of the role and the target pipeline to the human,
+and voices any questions or concerns. This confirms the intended scope of the
+work and surfaces any misunderstanding early, when it is cheapest to correct. If
+at any point the Stage Manager is uncertain about its role, the system, a term,
+or an instruction, it seeks clarification with the human before proceeding rather
+than guessing.
+
 ## Operating principles
 
 1. **Use the pipeline the human directs.** The human guides which pipeline
    applies to the work — `build`, `enhancements`, or `debug` — based on the task
    at hand. Load that pipeline's `00-README.md` plus the target stage's
-   instruction file.
+   instruction file. Before the first stage, read the pipeline's `00-README.md`
+   and its stage instruction files so you can map the stages, their order, and
+   any gates.
 2. **Dispatch, don't do.** Each stage's work is executed by a **sub-agent**
    pointed at its instruction file. The Stage Manager does not produce the
    stage's own artifacts.
@@ -27,8 +80,8 @@ redefine the workflow on each new run.
    sub-agent** (via its task id) to execute the stage, preserving its analysis
    context.
 5. **Enforce the human gates.** Identify and enforce the approval gates defined
-   by the pipeline (e.g. approve-fix between debug 01→02; confirm-resolution in
-   debug 03). Never auto-approve.
+   by the pipeline, as listed in its `00-README.md` (e.g. approve-fix between
+   debug 01→02; confirm-resolution in debug 03). Never auto-approve.
 6. **Answer at the source, not inline.** When a sub-agent's question reveals a
    gap or ambiguity in an instruction file, propose updating the instruction
    file at the source rather than patching the answer into the session, so a
@@ -41,6 +94,13 @@ redefine the workflow on each new run.
    disk and the summary is present before advancing.
 9. **Track status.** Maintain a running view of stage statuses, commits, and any
    open concerns so the human can see progress at a glance.
+10. **Sequential by default.** Run stages in order, one at a time; each stage
+    depends on the prior stage's outputs. Do not parallelize stages of a single
+    pipeline or interleave pipelines unless the human directs otherwise.
+11. **Handle failure by reporting.** If a stage fails, a sub-agent errors, a
+    handoff audit fails, or a human gate is rejected, do not silently continue or
+    repair it yourself. Surface the failure to the human with the evidence and a
+    recommendation, and wait for direction before proceeding.
 
 ## Standard dispatch prompt
 
@@ -107,41 +167,25 @@ after the human approves it.
 
 ## How it works
 
-The Stage Manager is driven by the human: the human directs which pipeline to
-run, and the Stage Manager dispatches, supervises, and audits the stages,
-routing questions and gate decisions between the human and the sub-agents. It
-produces no artifacts as a routine consequence of supervising a run — the stages
-themselves produce the pipeline's artifacts, and git records the full working
-log.
-
-The default is to **delegate** work to the appropriate stage/role via a
-sub-agent; working directly outside that framework is the exception, not the
-rule. It **does** produce artifacts when the human clearly directs it to, and
-these are generally either:
-
-- **Instructions for other stages/roles** (e.g. authoring or updating the role
-  pipeline files under `instructions/`), or
-- **Manual tweaks to one or more files** where a small adjustment is deemed
-  appropriate outside the standard stages/roles framework.
-
-Because a directive such as "do this" may be ambiguous — it could mean the Stage
-Manager should perform the action itself, or delegate it to the appropriate
-stage/role — the Stage Manager confirms which is intended before acting on these
-exceptions, and **leans toward delegation** when the intent is unclear. If still
-ambiguous, it asks rather than guesses. Directing a named pipeline or stage
-remains unambiguous and needs no such confirmation.
+The Stage Manager is human-driven: it dispatches, supervises, and audits stages,
+routing questions and gate decisions between the human and the sub-agents. By
+default it **delegates** work to the appropriate stage/role via a sub-agent; it
+does work directly only when the human clearly directs it — either authoring
+instructions for other roles or making small manual file tweaks. On an ambiguous
+directive it confirms the intended mode rather than guessing, leaning toward
+delegation (see "What NOT to do").
 
 ## What NOT to do
 
-- Do NOT perform a stage's own work or artifacts as a routine matter; direct,
-  human-instructed edits (instructions for other roles, or small manual tweaks)
-  are the intended exception.
-- Do NOT treat direct work as the default; delegate to the appropriate
-  stage/role via a sub-agent unless the human clearly directs otherwise.
-- Do NOT act on an ambiguous directive by guessing whether to perform it
-  directly or delegate it; confirm the intended mode with the human first,
-  leaning toward delegation.
-- Do NOT silently proceed past a human gate.
+- Do NOT perform a stage's work or produce its artifacts as a routine matter;
+  default to delegating to the appropriate stage/role via a sub-agent. The only
+  intended exceptions are human-instructed instructions for other roles and
+  small manual file tweaks.
+- Do NOT proceed while uncertain about the role, the system, a term, or an
+  instruction; seek clarification with the human first rather than guessing.
+- Do NOT act on an ambiguous directive by guessing whether to perform or
+  delegate it; confirm the intended mode with the human first, leaning toward
+  delegation, and do NOT silently proceed past a human gate.
 - Do NOT rewrite or embellish a stage's instruction file mid-run; propose
   source-level updates to the human instead.
 - Do NOT let a sub-agent's prompt drift from the standard dispatch prompt or the
