@@ -340,3 +340,137 @@ state-flow logic.
   remain valid; all Part A/B endpoints re-exercised here (catalog, vocab,
   progress, scores, review, signup/login/logout/me, admin) behaved identically
   during this pass.
+
+---
+
+# Part D — Sprint 03 Enhancement Pass (UI polish, Study Auto-Play, lesson levels)
+
+- **Stage:** 8 — Verification Engineer
+- **Date:** 2026-08-29
+- **Method:** Live API verification with `curl` against a running instance of the
+  application (started via `./run.sh`), plus static review of the frontend
+  rendering logic. Browser interaction was **not** exercised by an automation
+  tool in this environment. The v0.1 (Part A), Sprint 01 (Part B), and Sprint 02
+  (Part C) results above are preserved; all Parts A–C endpoints re-exercised
+  during this pass behaved unchanged.
+- **Overall result:** **PASS** (all checklist items passed; no failures found).
+  3 known limitations are recorded (see "Limitations").
+
+## Checklist derivation
+
+The Sprint 03 checklist was derived from `enhancements/scope.md` (features a–j,
+constraints k–m), the ten feature briefs (`features/briefs/01-10/*.md`), and
+`docs/architecture.md` Part D (§22–27). Backend items are grouped by the Part D
+contracts (lessons `level`/`emoji` reads, admin create/update, validation
+semantics); frontend items are grouped by the briefs. A representative Parts
+A–C regression set is included per the verification brief. Each item is
+traceable to a specific requirement. Frontend behavior is reviewed statically
+(rendering logic), not exercised in a browser.
+
+## Environment setup evidence
+
+- The environment was already provisioned by prior stages (`.venv/` with
+  `fastapi==0.111.0`, `uvicorn==0.30.1`; Bootstrap 5.3.3 under
+  `frontend/static/vendor/bootstrap/`). `install.sh` was **not** re-run for this
+  pass.
+- `./run.sh 8099` started Uvicorn on `0.0.0.0:8099` (`app.main:app`); startup log
+  recorded under `./tmp/08-stage08-server.log`; `Application startup complete`.
+- Root `/` serves the SPA (HTTP 200); Bootstrap `bootstrap.min.css` and
+  `bootstrap.bundle.min.js` both return HTTP 200.
+- **Seed verification used the backup-restore method (as directed):** the existing
+  `backend/english_tutor.db` was backed up to `english_tutor.db.bak`, deleted, and
+  the server restarted so the DB was recreated and re-seeded freshly. Fresh seed
+  was verified (checks D1–D2 below), then the server was stopped and the backup
+  was restored, leaving the on-disk DB exactly as it was before the pass.
+
+## Backend / API checks (live, via curl)
+
+| # | Check (traceable requirement) | Result | Evidence |
+|---|-------------------------------|--------|----------|
+| D1 | Fresh seed: catalog returns 5 lessons, all Level 1 (Brief 09; scope boundary) | PASS | `GET /api/lessons` → 200; ids 1–5 each `"level":1`, `vocab_count` 10. |
+| D2 | Fresh seed: the 5 seeded lessons carry the specific emojis (Brief 10; scope boundary) | PASS | 👋 (Greetings & Basics), 🔢 (Numbers & Time), 👨👩👧 (Family), 🍎 (Food & Drink), ⚡ (Common Verbs). |
+| D3 | Lesson detail returns `level` + `emoji` (Brief 09/10; arch §23) | PASS | `GET /api/lessons/1` → `{"level":1,"emoji":"👋"}` + 10-item vocab. |
+| D4 | No regression: vocab per lesson = 10 items (Parts A/B) | PASS | lessons 1–5 `/vocab` length [10,10,10,10,10]. |
+| D5 | No regression: unknown lesson detail → 404 (arch §23) | PASS | `GET /api/lessons/999` → 404. |
+| D6 | Admin dummy gate unchanged (feature h; scope note) | PASS | `POST /api/admin/login` `{admin,admin}` → 200 `{token,admin:true}`. |
+| D7 | Create lesson with custom `level`+`emoji` → 201 reflects both (Brief 09/10; arch §23) | PASS | `{title:"Travel",level:4,emoji:"✈️"}` → 201 `{"id":6,"level":4,"emoji":"✈️","vocab":[]}`. |
+| D8 | Create lesson with no `level`/`emoji` → defaults 1 / 📘 (arch §23) | PASS | `{title:"Default Lesson"}` → 201 `{"level":1,"emoji":"📘"}`. |
+| D9 | `PUT` partial-edit `level` only updates level, preserves title/emoji (arch §23) | PASS | `PUT /api/admin/lessons/1 {"level":3}` → 200 `{title:"Greetings & Basics",level:3,emoji:"👋"}`. |
+| D10 | `PUT` partial-edit `emoji` only updates emoji, preserves title/level (arch §23) | PASS | `PUT /api/admin/lessons/1 {"emoji":"🎯"}` → 200 `{level:3,emoji:"🎯"}` (title preserved). |
+| D11 | `PUT` restore of lesson 1 to seed values (state cleanup) | PASS | `{"title":"Greetings & Basics","level":1,"emoji":"👋"}` → 200. |
+| D12 | Validation: `level` 0 → 422 (arch §23) | PASS | create `level:0` → 422 "Input should be greater than or equal to 1". |
+| D13 | Validation: `level` 6 → 422 (arch §23) | PASS | `PUT` `level:6` → 422 "Input should be less than or equal to 5". |
+| D14 | Validation: non-integer `level` → 422 (arch §23) | PASS | create `level:"high"` → 422. |
+| D15 | Validation: empty `emoji` → 422 (arch §23) | PASS | create `emoji:""` → 422. |
+| D16 | `PUT` all fields absent → 422 (arch §23) | PASS | `PUT /api/admin/lessons/1 {}` → 422 "At least one field required". |
+| D17 | `PUT` unknown lesson → 404 (arch §23) | PASS | `PUT /api/admin/lessons/999 {"level":2}` → 404. |
+| D18 | Mutating admin route without token → 401 (arch §23) | PASS | `POST /api/admin/lessons` w/o token → 401. |
+| D19 | No Part C regression: `GET /api/users` public; empty on fresh DB then non-empty (Part C §17) | PASS | fresh DB → 200 `{"data":[]}`; after signup → `{"data":[{"id":1,"username":"verify_s03"}]}`. |
+| D20 | No Part B regression: signup/login/me + 409/401 semantics (Part B §13) | PASS | signup new user → 201; duplicate → 409; login → 200; logout (auth) → 200; used token on `/api/scores` → 401. |
+| D21 | No Part B regression: scores + progress + validation (Part B §13) | PASS | quiz → 201 `score_pct:80.0`; `GET /api/scores` → 200; `GET /api/lessons/1/progress` → 200 `{total:10,known:0}`; `mode:"drill"` → 422. |
+| D22 | No Part A regression: static assets + SPA served (Part A) | PASS | `/` 200; bootstrap css/js 200. |
+
+## Frontend checks (static review)
+
+The frontend (`index.html`, `js/app.js`, `js/views.js`, `css/style.css`) was
+reviewed against the briefs. Both `app.js` and `views.js` pass `node --check`
+syntax validation. Browser interaction is **not** headlessly exercised in this
+environment; the results below are based on static review of the rendering and
+state-flow logic.
+
+| # | Check (traceable requirement) | Result | Evidence (static review) |
+|---|-------------------------------|--------|--------------------------|
+| F1 | Catalog breadcrumb / Study "Catalog" / results "All Lessons" work via event delegation (Brief 01) | PASS | `app.js` `setupNav()` registers a single document-level `click` listener on `[data-nav]` (line 435–443); all dynamically-rendered links (`data-nav="catalog"` in Lesson/Study breadcrumbs, results "All Lessons", error "Back to Catalog") route to `goCatalog()`. |
+| F2 | App footer removed (Brief 02) | PASS | `index.html` contains no footer / "state served by the backend API" text; the page ends after main content. |
+| F3 | Page transitions cross-fade with instant-swap fallback (Brief 03) | PASS | `app.js` `render()` wraps the DOM swap in `document.startViewTransition` when present, else applies instantly (lines 62–73); CSS defines `view-fade-in`/`view-fade-out` keyframes. No blocking/breaking of navigation. |
+| F4 | Study green play control, 2s/4s auto-play, stop-at-end, toggle to stop, resync, stop-on-leave (Brief 04) | PASS | `Views.study` renders green `#studyAutoPlay` "▶ Play" (`btn-success`); `playItem()` speaks English (~2s), Hebrew (~4s), advances, stops at `vocab.length-1`; `toggleAuto` switches label to "■ Stop"/`btn-danger`; `resyncAuto()` re-anchors to the displayed item; `inDocument()` guard + `render()` speech cancel stops playback on leaving. Audio-free timed advance where speech unsupported. |
+| F5 | Exam neutral selection indicator, no correctness revealed (Brief 05) | PASS | `Views.exam` `choose()` adds `.selected` to the chosen option; CSS `.option-btn.selected` is neutral grey (`#6c757d`/`#e9ecef`) with no correct/incorrect class; results deferred to `onFinish`. |
+| F6 | Quiz/Exam prompt = English word alone, centered & enlarged; Hebrew options enlarged (Brief 06) | PASS | prompt rendered via `promptEl.textContent = q.prompt` (English word alone); CSS `#quizPrompt`/`#examPrompt` at `3.5rem` centered; `.option-btn` at `2.2rem`. Sizes within the brief's "about 3×" allowance. |
+| F7 | Title "Admin" button renamed from "Admin Area" (Brief 07) | PASS | `Views.title` renders `<button id="titleAdmin">Admin</button>` (no "Admin Area" label). |
+| F8 | Automatic admin sign-in via fixed credential; Admin sign-in form removed (Brief 08; scope note) | PASS | `app.js` `goAdmin()` calls `POST /api/admin/login` with fixed `{admin,admin}` when no token and opens the panel; no admin login form is rendered. Backend dummy gate unchanged. |
+| F9 | "Level N" badge on Catalog cards and Lesson screen (Brief 09) | PASS | `Views.catalog` card renders `<span class="badge">Level {lesson.level}</span>` (line 149); Lesson hub header renders `Level {lesson.level}` badge (line 178). |
+| F10 | Emoji on Catalog cards only; bundled curated picker; admin Level (1–5) + emoji selects (Brief 09/10) | PASS | Catalog card shows `{lesson.emoji}` (line 148); Lesson screen header has **no** emoji (line 178); admin add/edit forms use `levelOptions()` (1–5) and `emojiOptions()` over the bundled `CURATED_EMOJIS` set (includes the 5 seeded emojis + 📘 default + extras); create/update send `title, level, emoji`. |
+| F11 | No regressions / no unrequested features; frontend holds no authoritative copy (constraints k, l; scope) | PASS | Frontend only renders API data; no new endpoints, no deletion UI, no lesson gating. All Parts A–C endpoints re-exercised (D19–D22) behaved unchanged. |
+| F12 | Frontend JS parses cleanly (build sanity) | PASS | `node --check` on `app.js` and `views.js` both exit 0. |
+
+## Summary of results
+
+- **Total checks:** 34 (22 backend/API live + 12 frontend static).
+- **Passed:** all 34 checks passed.
+- **Failed:** none.
+
+## Limitations (known, per constraints k/m — recorded, not failures)
+
+- **L1. Quiz/Exam prompt sizing is approximate.** The English prompt is set to
+  `3.5rem` and Hebrew options to `2.2rem` (feature f), tuned for layout rather
+  than the literal 3× of the prior `1.75rem`/`1.4rem`. This is within the brief's
+  "about 3× / may be tuned for layout" allowance and was confirmed acceptable.
+- **L2. Auto-Play timing is fixed, not speech-latency-adaptive.** The 2s/4s
+  pauses drive the sequence deterministically (matching the audio-free case), so
+  on slow speech engines actual audio may finish slightly before the next
+  segment. This matches the brief's "roughly" allowance. Stop-at-end and
+  resync-on-navigation are implemented but were verified statically, not in a
+  live browser.
+- **L3. Automatic Admin sign-in uses a fixed credential.** `goAdmin()` supplies
+  `admin`/`admin` to the retained backend dummy gate (any non-empty credential
+  passes); there is no real credential verification. This is the documented
+  simplification per scope constraint m, not a security guarantee.
+- (Existing limitations from Parts A–C — in-memory session/admin tokens, dummy
+  gate, admin-created lessons with fewer vocab items — remain in force.)
+
+## Notes
+
+- Verification created transient data on the **fresh** seeded DB (lessons
+  "Travel"/"Default Lesson", users `verify_s03`/`verify_s03c`, one quiz score)
+  against the running app. The fresh DB was deleted and the original on-disk DB
+  restored from backup afterward; the database is gitignored, so no test data is
+  committed and the pre-existing DB is unchanged.
+- Browser interaction (clicking breadcrumbs, cross-fade transitions, auto-play
+  audio, exam selection, emoji picker in a live browser) was **not** automated
+  in this environment; frontend behavior was verified by static review of
+  rendering/state-flow logic plus API-level verification of the endpoints the
+  frontend consumes.
+- The existing Part A (v0.1), Part B (Sprint 01), and Part C (Sprint 02) results
+  are unchanged and remain valid; all Parts A–C endpoints re-exercised here
+  (catalog, vocab, auth, scores, progress, review, users, admin) behaved
+  identically during this pass.
