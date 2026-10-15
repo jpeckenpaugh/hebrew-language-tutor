@@ -35,8 +35,11 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Path to the folder containing your static assets
-          path: './frontend'
+          # Path to the folder containing your static assets.
+          # The primary client/server app in ./frontend requires the FastAPI
+          # backend, which GitHub Pages cannot host. Deploy the self-contained
+          # static SPA from ./proof-of-concept so the site works with no backend.
+          path: './proof-of-concept'
 
       - name: Deploy to GitHub Pages
         id: deployment
