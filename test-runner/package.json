@@ -1,0 +1,11 @@
+{
+  "name": "hebrew-language-tutor-test-runner",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node runner.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.55.0"
+  }
+}
